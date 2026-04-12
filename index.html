@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>籃球數據記錄系統</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #f47c20;
+      --orange-dark: #d4640e;
+      --navy: #0d1b2a;
+      --navy-mid: #1a2e45;
+      --navy-light: #243b55;
+      --white: #f5f5f5;
+      --gray: #8a9bb0;
+      --red: #e84040;
+      --green: #2ec46b;
+      --gold: #f7c948;
+      --team-a: #4a9eff;
+      --team-b: #ff6b6b;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      background: var(--navy);
+      color: var(--white);
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: linear-gradient(135deg, var(--navy-mid), var(--navy-light));
+      border-bottom: 3px solid var(--orange);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header .ball { font-size: 2rem; }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 1px; }
+    header span { color: var(--orange); }
+
+    /* ── PAGE SECTIONS ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--navy-mid);
+      border: 1px solid var(--navy-light);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      color: var(--orange);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── FORM ELEMENTS ── */
+    label { font-size: 0.85rem; color: var(--gray); display: block; margin-bottom: 4px; }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--navy);
+      border: 1px solid var(--navy-light);
+      border-radius: 8px;
+      color: var(--white);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      border-color: var(--orange);
+    }
+    select option { background: var(--navy-mid); }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-orange { background: var(--orange); color: #fff; }
+    .btn-orange:hover:not(:disabled) { background: var(--orange-dark); }
+    .btn-green  { background: var(--green);  color: #fff; }
+    .btn-red    { background: var(--red);    color: #fff; }
+    .btn-gray   { background: var(--navy-light); color: var(--white); }
+    .btn-sm     { padding: 5px 11px; font-size: 0.8rem; border-radius: 6px; }
+
+    /* ── SETUP PAGE ── */
+    .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .setup-grid { grid-template-columns: 1fr; } }
+
+    .game-type-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    .type-btn {
+      flex: 1;
+      padding: 14px;
+      border: 2px solid var(--navy-light);
+      border-radius: 10px;
+      background: var(--navy);
+      color: var(--gray);
+      cursor: pointer;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      transition: all .2s;
+    }
+    .type-btn.selected { border-color: var(--orange); color: var(--orange); background: rgba(244,124,32,.1); }
+
+    .player-input-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .player-input-row input { flex: 1; }
+
+    .player-list { list-style: none; display: flex; flex-direction: column; gap: 6px; min-height: 40px; }
+    .player-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    .player-item.team-a { background: rgba(74,158,255,.12); border-left: 3px solid var(--team-a); }
+    .player-item.team-b { background: rgba(255,107,107,.12); border-left: 3px solid var(--team-b); }
+
+    .player-count { font-size: 0.78rem; color: var(--gray); margin-top: 6px; }
+    .player-count.ok { color: var(--green); }
+    .player-count.over { color: var(--red); }
+
+    .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .start-area { text-align: center; padding: 10px 0 0; }
+    .validation-msg { color: var(--red); font-size: 0.82rem; margin-top: 8px; min-height: 18px; }
+
+    /* ── GAME PAGE ── */
+    .scoreboard {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      background: linear-gradient(135deg, var(--navy-light), var(--navy-mid));
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid var(--navy-light);
+    }
+    .team-score { text-align: center; }
+    .team-label { font-size: 0.82rem; color: var(--gray); margin-bottom: 4px; }
+    .team-name-display { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .team-name-display.a { color: var(--team-a); }
+    .team-name-display.b { color: var(--team-b); }
+    .score-num { font-size: 3.5rem; font-weight: 900; line-height: 1; }
+    .score-num.a { color: var(--team-a); }
+    .score-num.b { color: var(--team-b); }
+
+    .timer-center { text-align: center; }
+    .timer-display {
+      font-size: 2.4rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+    .timer-display.urgent { color: var(--red); animation: blink .8s step-end infinite; }
+    @keyframes blink { 50% { opacity: .3; } }
+    .timer-controls { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+    .quarter-badge {
+      font-size: 0.78rem;
+      background: var(--navy-light);
+      padding: 3px 10px;
+      border-radius: 99px;
+      color: var(--gray);
+    }
+
+    /* ── STATS TABLE ── */
+    .teams-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .teams-wrapper { grid-template-columns: 1fr; } }
+
+    .team-panel { border-radius: 12px; overflow: hidden; }
+    .team-panel-header {
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .team-panel-header.a { background: rgba(74,158,255,.2); color: var(--team-a); }
+    .team-panel-header.b { background: rgba(255,107,107,.2); color: var(--team-b); }
+
+    .stats-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .stats-table th {
+      padding: 8px 6px;
+      text-align: center;
+      color: var(--gray);
+      font-weight: 600;
+      border-bottom: 1px solid var(--navy-light);
+      white-space: nowrap;
+    }
+    .stats-table td {
+      padding: 8px 4px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      vertical-align: middle;
+    }
+    .stats-table tr:last-child td { border-bottom: none; }
+    .player-name-cell { text-align: left !important; padding-left: 10px !important; font-weight: 600; }
+
+    .stat-group { display: flex; align-items: center; justify-content: center; gap: 3px; }
+    .stat-val { min-width: 22px; text-align: center; font-weight: 700; font-size: 0.9rem; }
+    .stat-btn {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .15s;
+    }
+    .stat-btn:hover { opacity: .8; }
+    .stat-btn-plus  { background: rgba(46,196,107,.25); color: var(--green); }
+    .stat-btn-minus { background: rgba(232,64,64,.2);   color: var(--red); }
+    .stat-btn-pts   { background: rgba(244,124,32,.25); color: var(--orange); }
+
+    .pts-group { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+    .pts-badge {
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: rgba(244,124,32,.2);
+      color: var(--orange);
+      transition: background .15s;
+    }
+    .pts-badge:hover { background: rgba(244,124,32,.45); }
+
+    /* ── RESULT PAGE ── */
+    .result-banner {
+      text-align: center;
+      padding: 36px 20px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+    }
+    .result-banner.win-a  { background: linear-gradient(135deg, rgba(74,158,255,.15), rgba(74,158,255,.05)); border: 2px solid var(--team-a); }
+    .result-banner.win-b  { background: linear-gradient(135deg, rgba(255,107,107,.15), rgba(255,107,107,.05)); border: 2px solid var(--team-b); }
+    .result-banner.tie    { background: linear-gradient(135deg, rgba(247,201,72,.1), rgba(247,201,72,.03)); border: 2px solid var(--gold); }
+    .result-trophy { font-size: 4rem; margin-bottom: 8px; }
+    .result-winner { font-size: 1.8rem; font-weight: 900; margin-bottom: 6px; }
+    .result-score  { font-size: 2.5rem; font-weight: 900; letter-spacing: 4px; }
+    .score-sep { color: var(--gray); }
+
+    .result-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .result-stats-grid { grid-template-columns: 1fr; } }
+
+    .result-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .result-table th { padding: 8px; text-align: center; color: var(--gray); font-weight: 600; border-bottom: 1px solid var(--navy-light); }
+    .result-table td { padding: 8px; text-align: center; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table .name-col { text-align: left; font-weight: 600; }
+    .result-table .top-scorer { color: var(--gold); }
+
+    .new-game-area { text-align: center; padding: 20px 0 10px; }
+
+    /* ── PERIOD SELECTOR ── */
+    .period-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .period-row label { color: var(--gray); font-size: 0.82rem; margin: 0; white-space: nowrap; }
+    .period-select { width: auto; padding: 6px 10px; font-size: 0.82rem; }
+
+    /* ── MISC ── */
+    .flex-row { display: flex; gap: 10px; align-items: center; }
+    .mt-8 { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    hr.divider { border: none; border-top: 1px solid var(--navy-light); margin: 16px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="ball">🏀</span>
+  <h1>籃球 <span>數據記錄系統</span></h1>
+</header>
+
+<!-- ══════════════════════════════════════════
+     PAGE 1 – SETUP
+══════════════════════════════════════════ -->
+<section class="page active" id="page-setup">
+  <div class="container">
+
+    <div class="card">
+      <h2>⚙️ 比賽設定</h2>
+
+      <!-- Game type -->
+      <label>比賽類型</label>
+      <div class="game-type-row">
+        <button class="type-btn selected" data-type="3v3" onclick="selectType('3v3',this)">3 對 3</button>
+        <button class="type-btn"          data-type="5v5" onclick="selectType('5v5',this)">5 對 5</button>
+      </div>
+
+      <!-- Timer config -->
+      <div class="time-row">
+        <div>
+          <label>節數</label>
+          <select id="cfg-periods">
+            <option value="1">1 節</option>
+            <option value="2">2 節</option>
+            <option value="4" selected>4 節</option>
+          </select>
+        </div>
+        <div>
+          <label>每節時間（分鐘）</label>
+          <input type="number" id="cfg-minutes" value="10" min="1" max="60" />
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- Team names -->
+      <div class="setup-grid">
+        <div>
+          <label>隊伍 A 名稱</label>
+          <input type="text" id="team-a-name" placeholder="隊伍 A" maxlength="20" />
+        </div>
+        <div>
+          <label>隊伍 B 名稱</label>
+          <input type="text" id="team-b-name" placeholder="隊伍 B" maxlength="20" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Players -->
+    <div class="setup-grid">
+
+      <!-- Team A -->
+      <div class="card">
+        <h2 style="color:var(--team-a)">👕 隊伍 A 球員</h2>
+        <div class="player-input-row">
+          <input type="text" id="input-a" placeholder="輸入球員姓名" maxlength="12" onkeydown="enterAdd('a',event)" />
+          <button class="btn btn-orange btn-sm" onclick="addPlayer('a')">+ 新增</button>
+        </div>
+        <ul class="player-list" id="list-a"></ul>
+        <p class="player-count" id="count-a">0 / ? 名球員</p>
+      </div>
+
+      <!-- Team B -->
+      <div class="card">
+        <h2 style="color:var(--team-b)">👕 隊伍 B 球員</h2>
+        <div class="player-input-row">
+          <input type="text" id="input-b" placeholder="輸入球員姓名" maxlength="12" onkeydown="enterAdd('b',event)" />
+          <button class="btn btn-orange btn-sm" onclick="addPlayer('b')">+ 新增</button>
+        </div>
+        <ul class="player-list" id="list-b"></ul>
+        <p class="player-count" id="count-b">0 / ? 名球員</p>
+      </div>
+    </div>
+
+    <div class="start-area">
+      <button class="btn btn-green" style="font-size:1.05rem;padding:13px 40px;" onclick="startGame()">▶ 開始比賽</button>
+      <p class="validation-msg" id="setup-error"></p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     PAGE 2 – GAME
+══════════════════════════════════════════ -->
+<section class="page" id="page-game">
+  <div class="container">
+
+    <!-- Scoreboard + timer -->
+    <div class="scoreboard">
+      <div class="team-score">
+        <div class="team-label">隊伍 A</div>
+        <div class="team-name-display a" id="sb-name-a">隊伍 A</div>
+        <div class="score-num a" id="sb-score-a">0</div>
+      </div>
+
+      <div class="timer-center">
+        <div class="timer-display" id="timer-display">10:00</div>
+        <div class="quarter-badge" id="quarter-badge">第 1 節</div>
+        <div class="timer-controls mt-8">
+          <button class="btn btn-green btn-sm" id="btn-startstop" onclick="toggleTimer()">▶ 開始計時</button>
+          <div class="flex-row mt-8" style="justify-content:center;">
+            <button class="btn btn-gray btn-sm" onclick="resetPeriod()">↺ 重設本節</button>
+            <button class="btn btn-red btn-sm"  onclick="endGame()">■ 結束比賽</button>
+          </div>
+        </div>
+        <div class="period-row" style="justify-content:center;">
+          <label>切換節數:</label>
+          <select class="period-select" id="period-selector" onchange="jumpPeriod(this.value)"></select>
+        </div>
+      </div>
+
+      <div class="team-score">
+        <div class="team-label">隊伍 B</div>
+        <div class="team-name-display b" id="sb-name-b">隊伍 B</div>
+        <div class="score-num b" id="sb-score-b">0</div>
+      </div>
+    </div>
+
+    <!-- Player stats -->
+    <div class="teams-wrapper">
+
+      <!-- Team A stats -->
+      <div class="team-panel">
+        <div class="team-panel-header a">
+          <span id="panel-name-a">隊伍 A</span>
+          <span style="font-size:.78rem;opacity:.7">得 / 板 / 助 / 阻 / 失</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="stats-table" id="stats-table-a">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding-left:10px;">球員</th>
+                <th>得分</th>
+                <th>籃板</th>
+                <th>助攻</th>
+                <th>阻攻</th>
+                <th>失誤</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Team B stats -->
+      <div class="team-panel">
+        <div class="team-panel-header b">
+          <span id="panel-name-b">隊伍 B</span>
+          <span style="font-size:.78rem;opacity:.7">得 / 板 / 助 / 阻 / 失</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="stats-table" id="stats-table-b">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding-left:10px;">球員</th>
+                <th>得分</th>
+                <th>籃板</th>
+                <th>助攻</th>
+                <th>阻攻</th>
+                <th>失誤</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     PAGE 3 – RESULTS
+══════════════════════════════════════════ -->
+<section class="page" id="page-result">
+  <div class="container">
+
+    <div id="result-banner" class="result-banner">
+      <div class="result-trophy" id="result-trophy">🏆</div>
+      <div class="result-winner" id="result-winner">—</div>
+      <div class="result-score">
+        <span id="res-score-a" style="color:var(--team-a)">0</span>
+        <span class="score-sep"> : </span>
+        <span id="res-score-b" style="color:var(--team-b)">0</span>
+      </div>
+    </div>
+
+    <div class="result-stats-grid">
+      <div class="card">
+        <h2 style="color:var(--team-a)">📊 <span id="res-name-a">隊伍 A</span> 數據</h2>
+        <div style="overflow-x:auto;">
+          <table class="result-table" id="result-table-a">
+            <thead><tr>
+              <th class="name-col">球員</th>
+              <th>得分</th><th>籃板</th><th>助攻</th><th>阻攻</th><th>失誤</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="color:var(--team-b)">📊 <span id="res-name-b">隊伍 B</span> 數據</h2>
+        <div style="overflow-x:auto;">
+          <table class="result-table" id="result-table-b">
+            <thead><tr>
+              <th class="name-col">球員</th>
+              <th>得分</th><th>籃板</th><th>助攻</th><th>阻攻</th><th>失誤</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="new-game-area">
+      <button class="btn btn-orange" style="font-size:1rem;padding:12px 36px;" onclick="newGame()">🔄 新的比賽</button>
+    </div>
+
+  </div>
+</section>
+
+<script>
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+const state = {
+  gameType: '3v3',
+  maxPlayers: 3,
+  totalPeriods: 4,
+  periodSeconds: 600,
+  currentPeriod: 1,
+  timeLeft: 600,
+  timerRunning: false,
+  timerInterval: null,
+  teams: {
+    a: { name: 'A隊', players: [] },
+    b: { name: 'B隊', players: [] }
+  }
+};
+
+function makePlayer(name) {
+  return { name, pts: 0, reb: 0, ast: 0, blk: 0, to: 0 };
+}
+
+function teamScore(team) {
+  return state.teams[team].players.reduce((s, p) => s + p.pts, 0);
+}
+
+/* ══════════════════════════════════════════
+   SETUP PAGE
+══════════════════════════════════════════ */
+function selectType(type, btn) {
+  state.gameType = type;
+  state.maxPlayers = type === '3v3' ? 3 : 5;
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  updateCounts();
+}
+
+function updateCounts() {
+  const max = state.maxPlayers;
+  ['a','b'].forEach(t => {
+    const n = state.teams[t].players.length;
+    const el = document.getElementById('count-' + t);
+    el.textContent = `${n} / ${max} 名球員`;
+    el.className = 'player-count' + (n === max ? ' ok' : n > max ? ' over' : '');
+  });
+}
+
+function addPlayer(team) {
+  const inp = document.getElementById('input-' + team);
+  const name = inp.value.trim();
+  if (!name) return;
+  state.teams[team].players.push(makePlayer(name));
+  inp.value = '';
+  renderPlayerList(team);
+  updateCounts();
+  inp.focus();
+}
+
+function enterAdd(team, e) {
+  if (e.key === 'Enter') addPlayer(team);
+}
+
+function removePlayer(team, idx) {
+  state.teams[team].players.splice(idx, 1);
+  renderPlayerList(team);
+  updateCounts();
+}
+
+function renderPlayerList(team) {
+  const ul = document.getElementById('list-' + team);
+  ul.innerHTML = '';
+  state.teams[team].players.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = 'player-item team-' + team;
+    li.innerHTML = `<span>${i + 1}. ${p.name}</span>
+      <button class="btn btn-sm" style="background:rgba(232,64,64,.15);color:var(--red);padding:3px 9px;font-size:.75rem;" onclick="removePlayer('${team}',${i})">✕</button>`;
+    ul.appendChild(li);
+  });
+}
+
+function startGame() {
+  const errEl = document.getElementById('setup-error');
+  errEl.textContent = '';
+
+  const max = state.maxPlayers;
+  const na = state.teams.a.players.length;
+  const nb = state.teams.b.players.length;
+
+  if (na === 0 || nb === 0) {
+    errEl.textContent = '兩隊都至少需要 1 名球員。';
+    return;
+  }
+  if (na > max || nb > max) {
+    errEl.textContent = `${state.gameType} 每隊最多 ${max} 名球員。`;
+    return;
+  }
+
+  // Read config
+  state.totalPeriods  = parseInt(document.getElementById('cfg-periods').value);
+  state.periodSeconds = parseInt(document.getElementById('cfg-minutes').value) * 60;
+  state.teams.a.name  = document.getElementById('team-a-name').value.trim() || '隊伍 A';
+  state.teams.b.name  = document.getElementById('team-b-name').value.trim() || '隊伍 B';
+
+  state.currentPeriod = 1;
+  state.timeLeft = state.periodSeconds;
+  state.timerRunning = false;
+  clearInterval(state.timerInterval);
+
+  buildGamePage();
+  showPage('page-game');
+}
+
+/* ══════════════════════════════════════════
+   GAME PAGE
+══════════════════════════════════════════ */
+function buildGamePage() {
+  // Names
+  ['a','b'].forEach(t => {
+    document.getElementById('sb-name-' + t).textContent   = state.teams[t].name;
+    document.getElementById('panel-name-' + t).textContent = state.teams[t].name;
+  });
+
+  // Period selector
+  const sel = document.getElementById('period-selector');
+  sel.innerHTML = '';
+  for (let i = 1; i <= state.totalPeriods; i++) {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = `第 ${i} 節`;
+    if (i === 1) o.selected = true;
+    sel.appendChild(o);
+  }
+
+  updateScoreboard();
+  updateTimerDisplay();
+  updateQuarterBadge();
+  renderStatsTables();
+  document.getElementById('btn-startstop').textContent = '▶ 開始計時';
+  document.getElementById('btn-startstop').className = 'btn btn-green btn-sm';
+}
+
+function renderStatsTables() {
+  ['a','b'].forEach(team => {
+    const tbody = document.querySelector(`#stats-table-${team} tbody`);
+    tbody.innerHTML = '';
+    state.teams[team].players.forEach((p, i) => {
+      const tr = document.createElement('tr');
+      tr.id = `row-${team}-${i}`;
+      tr.innerHTML = buildStatRow(team, i);
+      tbody.appendChild(tr);
+    });
+  });
+}
+
+function buildStatRow(team, i) {
+  const p = state.teams[team].players[i];
+  return `
+    <td class="player-name-cell">${p.name}</td>
+    <td>
+      <div class="pts-group">
+        <button class="pts-badge" onclick="addStat('${team}',${i},'pts',1)">+1</button>
+        <button class="pts-badge" onclick="addStat('${team}',${i},'pts',2)">+2</button>
+        <button class="pts-badge" onclick="addStat('${team}',${i},'pts',3)">+3</button>
+        <span class="stat-val" style="color:var(--orange);min-width:24px;">${p.pts}</span>
+        <button class="stat-btn stat-btn-minus" onclick="addStat('${team}',${i},'pts',-1)">−</button>
+      </div>
+    </td>
+    ${statCell(team,i,'reb',p.reb)}
+    ${statCell(team,i,'ast',p.ast)}
+    ${statCell(team,i,'blk',p.blk)}
+    ${statCell(team,i,'to', p.to)}
+  `;
+}
+
+function statCell(team, i, key, val) {
+  return `<td>
+    <div class="stat-group">
+      <button class="stat-btn stat-btn-plus"  onclick="addStat('${team}',${i},'${key}',1)">+</button>
+      <span class="stat-val">${val}</span>
+      <button class="stat-btn stat-btn-minus" onclick="addStat('${team}',${i},'${key}',-1)">−</button>
+    </div>
+  </td>`;
+}
+
+function addStat(team, idx, key, delta) {
+  const p = state.teams[team].players[idx];
+  p[key] = Math.max(0, p[key] + delta);
+  const row = document.getElementById(`row-${team}-${idx}`);
+  if (row) row.innerHTML = buildStatRow(team, idx);
+  updateScoreboard();
+}
+
+function updateScoreboard() {
+  document.getElementById('sb-score-a').textContent = teamScore('a');
+  document.getElementById('sb-score-b').textContent = teamScore('b');
+}
+
+/* ── TIMER ── */
+function toggleTimer() {
+  if (state.timerRunning) {
+    pauseTimer();
+  } else {
+    startTimer();
+  }
+}
+
+function startTimer() {
+  if (state.timeLeft <= 0) return;
+  state.timerRunning = true;
+  document.getElementById('btn-startstop').textContent = '⏸ 暫停';
+  document.getElementById('btn-startstop').className = 'btn btn-gray btn-sm';
+
+  state.timerInterval = setInterval(() => {
+    if (state.timeLeft > 0) {
+      state.timeLeft--;
+      updateTimerDisplay();
+    }
+    if (state.timeLeft === 0) {
+      clearInterval(state.timerInterval);
+      state.timerRunning = false;
+      onPeriodEnd();
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  state.timerRunning = false;
+  clearInterval(state.timerInterval);
+  document.getElementById('btn-startstop').textContent = '▶ 繼續計時';
+  document.getElementById('btn-startstop').className = 'btn btn-green btn-sm';
+}
+
+function resetPeriod() {
+  pauseTimer();
+  state.timeLeft = state.periodSeconds;
+  updateTimerDisplay();
+  document.getElementById('btn-startstop').textContent = '▶ 開始計時';
+  document.getElementById('btn-startstop').className = 'btn btn-green btn-sm';
+}
+
+function jumpPeriod(val) {
+  pauseTimer();
+  state.currentPeriod = parseInt(val);
+  state.timeLeft = state.periodSeconds;
+  updateTimerDisplay();
+  updateQuarterBadge();
+  document.getElementById('btn-startstop').textContent = '▶ 開始計時';
+  document.getElementById('btn-startstop').className = 'btn btn-green btn-sm';
+}
+
+function onPeriodEnd() {
+  document.getElementById('btn-startstop').textContent = '▶ 開始計時';
+  document.getElementById('btn-startstop').className = 'btn btn-green btn-sm';
+
+  if (state.currentPeriod < state.totalPeriods) {
+    const next = state.currentPeriod + 1;
+    const go = confirm(`第 ${state.currentPeriod} 節結束！\n點擊確定進入第 ${next} 節。`);
+    if (go) {
+      state.currentPeriod = next;
+      state.timeLeft = state.periodSeconds;
+      document.getElementById('period-selector').value = next;
+      updateTimerDisplay();
+      updateQuarterBadge();
+    }
+  } else {
+    const end = confirm(`第 ${state.totalPeriods} 節（最終節）結束！\n點擊確定查看比賽結果。`);
+    if (end) showResult();
+  }
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(state.timeLeft / 60).toString().padStart(2,'0');
+  const s = (state.timeLeft % 60).toString().padStart(2,'0');
+  const el = document.getElementById('timer-display');
+  el.textContent = `${m}:${s}`;
+  el.classList.toggle('urgent', state.timeLeft <= 30 && state.timeLeft > 0);
+}
+
+function updateQuarterBadge() {
+  document.getElementById('quarter-badge').textContent = `第 ${state.currentPeriod} 節 / 共 ${state.totalPeriods} 節`;
+}
+
+function endGame() {
+  const ok = confirm('確定要提前結束比賽並查看結果嗎？');
+  if (ok) { pauseTimer(); showResult(); }
+}
+
+/* ══════════════════════════════════════════
+   RESULT PAGE
+══════════════════════════════════════════ */
+function showResult() {
+  const sa = teamScore('a');
+  const sb = teamScore('b');
+  const na = state.teams.a.name;
+  const nb = state.teams.b.name;
+
+  document.getElementById('res-score-a').textContent = sa;
+  document.getElementById('res-score-b').textContent = sb;
+  document.getElementById('res-name-a').textContent = na;
+  document.getElementById('res-name-b').textContent = nb;
+
+  const banner = document.getElementById('result-banner');
+  const winnerEl = document.getElementById('result-winner');
+  const trophyEl = document.getElementById('result-trophy');
+
+  if (sa > sb) {
+    banner.className = 'result-banner win-a';
+    trophyEl.textContent = '🏆';
+    winnerEl.textContent = `🎉 ${na} 獲勝！`;
+    winnerEl.style.color = 'var(--team-a)';
+  } else if (sb > sa) {
+    banner.className = 'result-banner win-b';
+    trophyEl.textContent = '🏆';
+    winnerEl.textContent = `🎉 ${nb} 獲勝！`;
+    winnerEl.style.color = 'var(--team-b)';
+  } else {
+    banner.className = 'result-banner tie';
+    trophyEl.textContent = '🤝';
+    winnerEl.textContent = '平局！';
+    winnerEl.style.color = 'var(--gold)';
+  }
+
+  buildResultTable('a');
+  buildResultTable('b');
+  showPage('page-result');
+}
+
+function buildResultTable(team) {
+  const tbody = document.querySelector(`#result-table-${team} tbody`);
+  tbody.innerHTML = '';
+  const players = [...state.teams[team].players].sort((a, b) => b.pts - a.pts);
+  players.forEach((p, i) => {
+    const tr = document.createElement('tr');
+    const isTop = i === 0 && p.pts > 0;
+    tr.innerHTML = `
+      <td class="name-col ${isTop ? 'top-scorer' : ''}">${isTop ? '★ ' : ''}${p.name}</td>
+      <td>${p.pts}</td><td>${p.reb}</td><td>${p.ast}</td><td>${p.blk}</td><td>${p.to}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function newGame() {
+  // Reset state players stats
+  ['a','b'].forEach(t => state.teams[t].players.forEach(p => { p.pts=0; p.reb=0; p.ast=0; p.blk=0; p.to=0; }));
+  state.teams.a.players = [];
+  state.teams.b.players = [];
+  renderPlayerList('a');
+  renderPlayerList('b');
+  updateCounts();
+  showPage('page-setup');
+}
+
+/* ══════════════════════════════════════════
+   PAGE NAVIGATION
+══════════════════════════════════════════ */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+updateCounts();
+</script>
+</body>
+</html>
