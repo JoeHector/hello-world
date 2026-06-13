@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>資產負債表計算器</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1a365d, #2b6cb0);
+      color: white;
+      padding: 24px 32px;
+      text-align: center;
+    }
+
+    header h1 { font-size: 1.8rem; letter-spacing: 2px; }
+    header p { margin-top: 6px; opacity: 0.8; font-size: 0.9rem; }
+
+    .container {
+      max-width: 1100px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    /* Date + Company Row */
+    .meta-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .meta-row label { font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 4px; color: #4a5568; }
+    .meta-row input {
+      padding: 8px 12px;
+      border: 1px solid #cbd5e0;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      width: 100%;
+    }
+    .meta-row .field { flex: 1; }
+
+    /* Main grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      .meta-row { flex-direction: column; }
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 20px;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 1px;
+    }
+
+    .assets .card-header    { background: #ebf8ff; color: #2b6cb0; border-bottom: 2px solid #bee3f8; }
+    .liabilities .card-header { background: #fff5f5; color: #c53030; border-bottom: 2px solid #fed7d7; }
+    .equity .card-header    { background: #f0fff4; color: #276749; border-bottom: 2px solid #c6f6d5; }
+
+    .section { padding: 16px 20px; }
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #718096;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .item-row input[type="text"] {
+      flex: 1;
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      transition: border-color 0.2s;
+    }
+
+    .item-row input[type="number"] {
+      width: 130px;
+      padding: 7px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      text-align: right;
+      transition: border-color 0.2s;
+    }
+
+    .item-row input:focus {
+      outline: none;
+      border-color: #63b3ed;
+      box-shadow: 0 0 0 2px rgba(99,179,237,0.2);
+    }
+
+    .btn-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #fc8181;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .btn-remove:hover { background: #fff5f5; }
+
+    .btn-add {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 6px 12px;
+      border: 1px dashed #cbd5e0;
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      font-size: 0.83rem;
+      color: #718096;
+      transition: all 0.2s;
+    }
+    .btn-add:hover { border-color: #63b3ed; color: #2b6cb0; background: #ebf8ff; }
+
+    .subtotal {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #4a5568;
+      background: #f7fafc;
+      border-radius: 0 0 6px 6px;
+    }
+    .subtotal span { font-size: 0.95rem; }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      font-weight: 700;
+      font-size: 1rem;
+      border-top: 2px solid;
+    }
+    .assets .total-row    { border-color: #bee3f8; background: #ebf8ff; color: #1a365d; }
+    .liabilities .total-row { border-color: #fed7d7; background: #fff5f5; color: #742a2a; }
+    .equity .total-row    { border-color: #c6f6d5; background: #f0fff4; color: #1c4532; }
+
+    /* Balance Check */
+    .balance-panel {
+      grid-column: 1 / -1;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 20px 28px;
+    }
+
+    .balance-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #718096;
+      margin-bottom: 14px;
+    }
+
+    .balance-equation {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .eq-box {
+      flex: 1;
+      min-width: 180px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .eq-box .label { font-size: 0.78rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .eq-box .amount { font-size: 1.4rem; font-weight: 800; }
+    .eq-assets    { background: #ebf8ff; color: #2b6cb0; }
+    .eq-liab      { background: #fff5f5; color: #c53030; }
+    .eq-equity    { background: #f0fff4; color: #276749; }
+    .eq-plus, .eq-equals { font-size: 1.5rem; color: #a0aec0; }
+
+    .balance-status {
+      margin-top: 14px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .balance-ok  { background: #c6f6d5; color: #22543d; }
+    .balance-err { background: #fed7d7; color: #742a2a; }
+
+    /* Actions */
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 10px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: #2b6cb0; color: white; }
+    .btn-primary:hover { background: #1a365d; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .btn-danger { background: #fc8181; color: white; }
+    .btn-danger:hover { background: #e53e3e; }
+
+    /* Print */
+    @media print {
+      body { background: white; }
+      header { background: #1a365d !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .actions { display: none; }
+      .btn-add, .btn-remove { display: none; }
+      .container { margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>資產負債表計算器</h1>
+    <p>Balance Sheet Calculator</p>
+  </header>
+
+  <div class="container">
+    <!-- Meta -->
+    <div class="meta-row">
+      <div class="field">
+        <label>公司名稱</label>
+        <input type="text" id="companyName" placeholder="輸入公司名稱" />
+      </div>
+      <div class="field">
+        <label>報表日期</label>
+        <input type="date" id="reportDate" />
+      </div>
+      <div class="field">
+        <label>貨幣單位</label>
+        <input type="text" id="currency" value="TWD" placeholder="TWD" style="max-width:100px" />
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- ASSETS -->
+      <div class="card assets" style="grid-row: span 2;">
+        <div class="card-header">資產 Assets</div>
+
+        <div class="section" id="current-assets-section">
+          <div class="section-title">流動資產 Current Assets</div>
+          <div id="current-assets-list"></div>
+          <button class="btn-add" onclick="addItem('current-assets-list', 'current-assets')">＋ 新增項目</button>
+          <div class="subtotal">
+            <span>流動資產合計</span>
+            <span id="current-assets-total">0</span>
+          </div>
+        </div>
+
+        <div class="section" id="noncurrent-assets-section">
+          <div class="section-title">非流動資產 Non-current Assets</div>
+          <div id="noncurrent-assets-list"></div>
+          <button class="btn-add" onclick="addItem('noncurrent-assets-list', 'noncurrent-assets')">＋ 新增項目</button>
+          <div class="subtotal">
+            <span>非流動資產合計</span>
+            <span id="noncurrent-assets-total">0</span>
+          </div>
+        </div>
+
+        <div class="total-row">
+          <span>資產總計 Total Assets</span>
+          <span id="total-assets">0</span>
+        </div>
+      </div>
+
+      <!-- LIABILITIES -->
+      <div class="card liabilities">
+        <div class="card-header">負債 Liabilities</div>
+
+        <div class="section">
+          <div class="section-title">流動負債 Current Liabilities</div>
+          <div id="current-liabilities-list"></div>
+          <button class="btn-add" onclick="addItem('current-liabilities-list', 'current-liabilities')">＋ 新增項目</button>
+          <div class="subtotal">
+            <span>流動負債合計</span>
+            <span id="current-liabilities-total">0</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">非流動負債 Non-current Liabilities</div>
+          <div id="noncurrent-liabilities-list"></div>
+          <button class="btn-add" onclick="addItem('noncurrent-liabilities-list', 'noncurrent-liabilities')">＋ 新增項目</button>
+          <div class="subtotal">
+            <span>非流動負債合計</span>
+            <span id="noncurrent-liabilities-total">0</span>
+          </div>
+        </div>
+
+        <div class="total-row">
+          <span>負債總計 Total Liabilities</span>
+          <span id="total-liabilities">0</span>
+        </div>
+      </div>
+
+      <!-- EQUITY -->
+      <div class="card equity">
+        <div class="card-header">股東權益 Equity</div>
+
+        <div class="section">
+          <div class="section-title">股東權益項目 Equity Items</div>
+          <div id="equity-list"></div>
+          <button class="btn-add" onclick="addItem('equity-list', 'equity')">＋ 新增項目</button>
+          <div class="subtotal">
+            <span>股東權益合計</span>
+            <span id="equity-total">0</span>
+          </div>
+        </div>
+
+        <div class="total-row">
+          <span>負債及股東權益總計</span>
+          <span id="total-liab-equity">0</span>
+        </div>
+      </div>
+
+      <!-- Balance Check -->
+      <div class="balance-panel">
+        <div class="balance-title">會計恆等式驗證 Accounting Equation</div>
+        <div class="balance-equation">
+          <div class="eq-box eq-assets">
+            <div class="label">資產 Assets</div>
+            <div class="amount" id="eq-assets">0</div>
+          </div>
+          <div class="eq-equals">=</div>
+          <div class="eq-box eq-liab">
+            <div class="label">負債 Liabilities</div>
+            <div class="amount" id="eq-liab">0</div>
+          </div>
+          <div class="eq-plus">+</div>
+          <div class="eq-box eq-equity">
+            <div class="label">股東權益 Equity</div>
+            <div class="amount" id="eq-equity">0</div>
+          </div>
+        </div>
+        <div class="balance-status balance-ok" id="balance-status">
+          ✓ 帳目平衡 — 資產 = 負債 + 股東權益
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="resetAll()">重置</button>
+        <button class="btn btn-secondary" onclick="loadSample()">載入範例</button>
+        <button class="btn btn-primary" onclick="window.print()">列印 / 匯出 PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fmt = n => Number(n).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    const groups = {
+      'current-assets':        { total: 'current-assets-total' },
+      'noncurrent-assets':     { total: 'noncurrent-assets-total' },
+      'current-liabilities':   { total: 'current-liabilities-total' },
+      'noncurrent-liabilities':{ total: 'noncurrent-liabilities-total' },
+      'equity':                { total: 'equity-total' },
+    };
+
+    function addItem(listId, group, name = '', amount = '') {
+      const list = document.getElementById(listId);
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.dataset.group = group;
+      row.innerHTML = `
+        <input type="text" placeholder="項目名稱" value="${name}" oninput="recalc()" />
+        <input type="number" placeholder="0" value="${amount}" min="0" oninput="recalc()" />
+        <button class="btn-remove" title="刪除" onclick="removeItem(this)">✕</button>
+      `;
+      list.appendChild(row);
+      recalc();
+    }
+
+    function removeItem(btn) {
+      btn.closest('.item-row').remove();
+      recalc();
+    }
+
+    function sumGroup(group) {
+      return [...document.querySelectorAll(`.item-row[data-group="${group}"] input[type="number"]`)]
+        .reduce((s, el) => s + (parseFloat(el.value) || 0), 0);
+    }
+
+    function recalc() {
+      const ca  = sumGroup('current-assets');
+      const nca = sumGroup('noncurrent-assets');
+      const cl  = sumGroup('current-liabilities');
+      const ncl = sumGroup('noncurrent-liabilities');
+      const eq  = sumGroup('equity');
+
+      const totalAssets = ca + nca;
+      const totalLiab   = cl + ncl;
+      const totalLE     = totalLiab + eq;
+
+      document.getElementById('current-assets-total').textContent      = fmt(ca);
+      document.getElementById('noncurrent-assets-total').textContent    = fmt(nca);
+      document.getElementById('current-liabilities-total').textContent  = fmt(cl);
+      document.getElementById('noncurrent-liabilities-total').textContent = fmt(ncl);
+      document.getElementById('equity-total').textContent              = fmt(eq);
+
+      document.getElementById('total-assets').textContent    = fmt(totalAssets);
+      document.getElementById('total-liabilities').textContent = fmt(totalLiab);
+      document.getElementById('total-liab-equity').textContent = fmt(totalLE);
+
+      document.getElementById('eq-assets').textContent = fmt(totalAssets);
+      document.getElementById('eq-liab').textContent   = fmt(totalLiab);
+      document.getElementById('eq-equity').textContent = fmt(eq);
+
+      const statusEl = document.getElementById('balance-status');
+      if (Math.abs(totalAssets - totalLE) < 0.01) {
+        statusEl.className = 'balance-status balance-ok';
+        statusEl.textContent = '✓ 帳目平衡 — 資產 = 負債 + 股東權益';
+      } else {
+        const diff = totalAssets - totalLE;
+        statusEl.className = 'balance-status balance-err';
+        statusEl.textContent = `✗ 帳目不平衡 — 差額: ${fmt(Math.abs(diff))}（資產${diff > 0 ? '多' : '少'}於負債＋股東權益）`;
+      }
+    }
+
+    function resetAll() {
+      if (!confirm('確定要清除所有資料嗎？')) return;
+      ['current-assets-list','noncurrent-assets-list','current-liabilities-list','noncurrent-liabilities-list','equity-list']
+        .forEach(id => document.getElementById(id).innerHTML = '');
+      document.getElementById('companyName').value = '';
+      document.getElementById('reportDate').value = '';
+      recalc();
+    }
+
+    function loadSample() {
+      resetAll();
+      // Cancel if user cancels reset
+      ['current-assets-list','noncurrent-assets-list','current-liabilities-list','noncurrent-liabilities-list','equity-list']
+        .forEach(id => { if (document.getElementById(id).innerHTML !== '') return; });
+
+      document.getElementById('companyName').value = '台灣範例股份有限公司';
+      document.getElementById('reportDate').value = new Date().toISOString().slice(0,10);
+
+      const samples = {
+        'current-assets':        [['現金及約當現金', 5800000], ['應收帳款', 3200000], ['存貨', 2100000], ['預付費用', 400000]],
+        'noncurrent-assets':     [['不動產、廠房及設備', 12000000], ['無形資產', 1500000], ['長期投資', 3000000]],
+        'current-liabilities':   [['應付帳款', 2800000], ['短期借款', 1500000], ['應付薪資', 600000]],
+        'noncurrent-liabilities':[['長期借款', 5000000], ['遞延所得稅負債', 700000]],
+        'equity':                [['普通股股本', 10000000], ['資本公積', 2000000], ['保留盈餘', 5400000]],
+      };
+
+      Object.entries(samples).forEach(([group, items]) => {
+        const listId = group + '-list';
+        items.forEach(([name, amount]) => addItem(listId, group, name, amount));
+      });
+    }
+
+    // Set today's date
+    document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+
+    // Load sample on start
+    loadSample();
+  </script>
+</body>
+</html>
