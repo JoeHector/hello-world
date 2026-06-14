@@ -473,23 +473,60 @@
       }
     }
 
+    const STORAGE_KEY = 'balance-sheet-data';
+
+    function saveData() {
+      const groups = ['current-assets','noncurrent-assets','current-liabilities','noncurrent-liabilities','equity'];
+      const data = {
+        companyName: document.getElementById('companyName').value,
+        reportDate:  document.getElementById('reportDate').value,
+        currency:    document.getElementById('currency').value,
+        items: {}
+      };
+      groups.forEach(group => {
+        data.items[group] = [...document.querySelectorAll(`.item-row[data-group="${group}"]`)].map(row => {
+          const inputs = row.querySelectorAll('input');
+          return [inputs[0].value, inputs[1].value];
+        });
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function loadSavedData() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      try {
+        const data = JSON.parse(raw);
+        document.getElementById('companyName').value = data.companyName || '';
+        document.getElementById('reportDate').value  = data.reportDate  || '';
+        document.getElementById('currency').value    = data.currency    || 'TWD';
+        Object.entries(data.items || {}).forEach(([group, items]) => {
+          const listId = group + '-list';
+          items.forEach(([name, amount]) => addItem(listId, group, name, amount));
+        });
+        return true;
+      } catch { return false; }
+    }
+
     function resetAll() {
       if (!confirm('確定要清除所有資料嗎？')) return;
       ['current-assets-list','noncurrent-assets-list','current-liabilities-list','noncurrent-liabilities-list','equity-list']
         .forEach(id => document.getElementById(id).innerHTML = '');
       document.getElementById('companyName').value = '';
-      document.getElementById('reportDate').value = '';
+      document.getElementById('reportDate').value  = new Date().toISOString().slice(0, 10);
+      document.getElementById('currency').value    = 'TWD';
+      localStorage.removeItem(STORAGE_KEY);
       recalc();
     }
 
     function loadSample() {
-      resetAll();
-      // Cancel if user cancels reset
+      if (!confirm('載入範例將覆蓋目前資料，確定繼續嗎？')) return;
       ['current-assets-list','noncurrent-assets-list','current-liabilities-list','noncurrent-liabilities-list','equity-list']
-        .forEach(id => { if (document.getElementById(id).innerHTML !== '') return; });
+        .forEach(id => document.getElementById(id).innerHTML = '');
 
       document.getElementById('companyName').value = '台灣範例股份有限公司';
-      document.getElementById('reportDate').value = new Date().toISOString().slice(0,10);
+      document.getElementById('reportDate').value  = new Date().toISOString().slice(0,10);
+      document.getElementById('currency').value    = 'TWD';
 
       const samples = {
         'current-assets':        [['現金及約當現金', 5800000], ['應收帳款', 3200000], ['存貨', 2100000], ['預付費用', 400000]],
@@ -500,16 +537,23 @@
       };
 
       Object.entries(samples).forEach(([group, items]) => {
-        const listId = group + '-list';
-        items.forEach(([name, amount]) => addItem(listId, group, name, amount));
+        items.forEach(([name, amount]) => addItem(group + '-list', group, name, amount));
       });
     }
 
-    // Set today's date
-    document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+    // Patch recalc to also save on every change
+    const _recalc = recalc;
+    recalc = function() { _recalc(); saveData(); };
 
-    // Load sample on start
-    loadSample();
+    // Also save when meta fields change
+    ['companyName','reportDate','currency'].forEach(id =>
+      document.getElementById(id).addEventListener('input', saveData)
+    );
+
+    // On load: restore saved data, or set today's date as default
+    if (!loadSavedData()) {
+      document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+    }
   </script>
 </body>
 </html>
