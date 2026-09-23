@@ -17,7 +17,8 @@ const NAMESPACE = /^(Special|Wikipedia|WP|Portal|File|Help|Category|Template|Use
 const MAIN_PAGES = new Set(["Main_Page", "Hauptseite", "Pagina_principale", "Página_principal", "Strona_główna",
   "Заглавная_страница", "Головна_сторінка", "Anasayfa", "Halaman_Utama", "Trang_Chính", "Hoofdpagina", "Huvudsida",
   "Forside", "Etusivu", "Hlavní_strana", "Kezdőlap", "Pagina_principală", "Κύρια_Σελίδα", "Početna_strana",
-  "Glavna_stran", "Accueil_principal", "Portada", "-", "Undefined"]);
+  "Glavna_stran", "Accueil_principal", "Portada", "メインページ", "หน้าหลัก", "الصفحة_الرئيسية",
+  "עמוד_ראשי", "मुखपृष्ठ", "Trang_chính", "-", "Undefined"]);
 const isArticle = (title, project) =>
   /^[a-z-]+\.wikipedia$/.test(project) && !NAMESPACE.test(title) && !MAIN_PAGES.has(title);
 
