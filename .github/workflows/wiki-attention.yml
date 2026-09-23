@@ -1,0 +1,37 @@
+name: 更新 Wikipedia 關注度資料
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # 每天 06:17 UTC
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/fetch-wiki-attention.mjs
+      - .github/workflows/wiki-attention.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki-attention-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node scripts/fetch-wiki-attention.mjs
+      - name: Commit data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/wiki-attention.json
+          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git commit -m "Update Wikipedia attention data"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
