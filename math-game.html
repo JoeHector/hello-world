@@ -62,6 +62,8 @@
 
     .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .options.two { grid-template-columns: repeat(2, 1fr); }
+    .options.four { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 400px) { .options.four { grid-template-columns: repeat(2, 1fr); } }
     .opt {
       border: 3px solid var(--line); background: #fff; border-radius: 14px; padding: 10px 4px;
       font-size: 1rem; font-weight: bold; color: var(--ink); cursor: pointer; font-family: inherit; transition: transform .1s;
@@ -137,6 +139,12 @@
       background: rgba(255,250,240,.9); border-radius: 8px; padding: 2px 6px; max-width: 132px;
     }
     .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 2px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.3); }
+    #game-screen:focus { outline: none; }
+    .focus-tip {
+      position: absolute; z-index: 6; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: calc(100% - 32px);
+      background: rgba(58,46,34,.88); color: #fff; padding: 12px 18px; border-radius: 16px; font-weight: bold; font-size: 1.05rem;
+      text-align: center; pointer-events: none; box-shadow: 0 6px 16px rgba(0,0,0,.25);
+    }
     .toast {
       position: absolute; z-index: 6; left: 50%; top: 32%; transform: translateX(-50%); max-width: calc(100% - 32px);
       background: rgba(58,46,34,.9); color: #fff; padding: 8px 16px; border-radius: 999px; font-weight: bold; font-size: 1rem;
@@ -383,10 +391,11 @@
 
       <div class="card">
         <h2>② 數字多大？</h2>
-        <div class="options" data-group="level">
+        <div class="options four" data-group="level">
           <button class="opt selected" data-value="10">🌱 簡單<small>10 以內</small></button>
           <button class="opt" data-value="20">🌳 普通<small>20 以內</small></button>
           <button class="opt" data-value="100">🚀 挑戰<small>100 以內</small></button>
+          <button class="opt" data-value="200">🏆 超級<small>200 以內</small></button>
         </div>
       </div>
 
@@ -412,7 +421,7 @@
     </section>
 
     <!-- 冒險畫面（全螢幕） -->
-    <section class="screen" id="game-screen">
+    <section class="screen" id="game-screen" tabindex="-1">
       <div class="stage" id="stage">
         <canvas id="view"></canvas>
       </div>
@@ -440,6 +449,7 @@
       </div>
 
       <div class="toast" id="toast" hidden></div>
+      <div class="focus-tip" id="focus-tip" hidden>⌨️ 點一下畫面，就能用鍵盤方向鍵走路</div>
 
       <!-- 方向鍵 -->
       <div class="controls" id="controls">
@@ -650,7 +660,7 @@
           ['snake','🐍','蛇'], ['house','🏠','房子'], ['water','💧','水'], ['sword','⚔️','劍'], ['crown','👑','皇冠'], ['cloud','☁️','雲'],
           ['grape','🍇','葡萄'], ['lemon','🍋','檸檬'], ['robot','🤖','機器人']],
     };
-    const SPELL_LENGTHS = { 10: [3], 20: [3, 4], 100: [4, 5] };
+    const SPELL_LENGTHS = { 10: [3], 20: [3, 4], 100: [4, 5], 200: [4, 5] };
     const SPELL_ASK = (w) => ASK(`「${w.zh}」${w.emoji} 的英文怎麼拼？`);
 
     const SPELL_NPC = [
@@ -747,10 +757,12 @@
       const L = settings.level;
       let a, b;
       if (op === '+') {
-        if (L === 100) { a = rand(10, 85); b = rand(3, 100 - a); }
+        if (L === 200) { a = rand(25, 175); b = rand(5, 200 - a); }        // 和最多 200
+        else if (L === 100) { a = rand(10, 85); b = rand(3, 100 - a); }
         else { a = rand(1, L - 1); b = rand(1, L - a); }
       } else {
-        if (L === 100) { a = rand(20, 100); b = rand(3, a - 1); }
+        if (L === 200) { a = rand(50, 200); b = rand(5, a - 1); }          // 被減數最多 200
+        else if (L === 100) { a = rand(20, 100); b = rand(3, a - 1); }
         else { a = rand(3, L); b = rand(1, a - 1); }
       }
       return { a, b, answer: op === '+' ? a + b : a - b };
@@ -1032,6 +1044,8 @@
       $('toast').hidden = true;
       showScreen('game-screen');
       updateHud();
+      $('focus-tip').hidden = true;
+      focusGame();
       toast(`🗺️ 新地圖產生了！${settings.name}從小村莊出發！`, 2600);
       state.raf = requestAnimationFrame(loop);
     }
@@ -2111,6 +2125,7 @@
         $('encounter').hidden = true;
         $('controls').hidden = false;
         $('game-screen').classList.remove('encountering');
+        focusGame();   // 「繼續冒險」按鈕藏起來後，焦點回到遊戲畫面，方向鍵馬上能用
         try { speechSynthesis.cancel(); } catch (e) {}
       } else {
         state.q = makeQuestion('battle', ent.beast.name);
@@ -2292,7 +2307,8 @@
     document.querySelectorAll('.pad').forEach(b => {
       const d = b.dataset.dir;
       const start = (e) => {
-        e.preventDefault();
+        e.preventDefault();       // 避免長按時選取文字或跳出選單
+        focusGame();              // 但要把鍵盤焦點拉回遊戲，之後按方向鍵才有用
         if (!state || state.active) return;
         b.classList.add('held');
         try { b.setPointerCapture(e.pointerId); } catch (_) {}
@@ -2306,25 +2322,49 @@
       b.addEventListener('contextmenu', (e) => e.preventDefault());
     });
 
-    const KEY_DIRS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+    // 鍵盤焦點：遊戲放在網頁框架裡時，要框架有焦點才收得到按鍵
+    function focusGame() {
+      try { window.focus(); } catch (_) {}
+      const gs = $('game-screen');
+      if (gs.classList.contains('active') && !gs.contains(document.activeElement)) gs.focus({ preventScroll: true });
+      $('focus-tip').hidden = true;
+    }
+    $('game-screen').addEventListener('pointerdown', focusGame);
+    window.addEventListener('focus', () => { $('focus-tip').hidden = true; });
+    window.addEventListener('blur', () => {
+      if (state && !state.finished && !state.active && $('game-screen').classList.contains('active')) $('focus-tip').hidden = false;
+    });
+
+    // 同時看 e.key 和 e.code：中文輸入法開著時，字母鍵的 e.key 會變成 "Process"
+    const KEY_DIRS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Up: 'up', Down: 'down', Left: 'left', Right: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+    const CODE_DIRS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
+    const imeKey = (e) => e.key === 'Process' || e.key === 'Unidentified' || e.keyCode === 229 || e.isComposing;
+    const dirOf = (e) => KEY_DIRS[e.key] || CODE_DIRS[e.code];
+    const letterOf = (e) => /^[a-zA-Z]$/.test(e.key) ? e.key.toLowerCase() : (imeKey(e) && /^Key([A-Z])$/.test(e.code) ? e.code.slice(3).toLowerCase() : null);
+    const digitOf = (e) => /^[0-9]$/.test(e.key) ? e.key : (imeKey(e) && /^(Digit|Numpad)[0-9]$/.test(e.code) ? e.code.slice(-1) : null);
+
     document.addEventListener('keydown', (e) => {
       if (!state || !$('game-screen').classList.contains('active') || !$('quit-modal').hidden) return;
+      if (e.target && e.target.tagName === 'INPUT') return;
+      $('focus-tip').hidden = true;
       const k = e.key;
       if (!state.active) {
-        const d = KEY_DIRS[k];
+        const d = dirOf(e);
         if (d) { e.preventDefault(); holdDir(d); }
         return;
       }
-      if (/^[0-9]$/.test(k)) press(k);
-      else if (/^[a-zA-Z]$/.test(k)) press(k.toLowerCase());
+      const digit = digitOf(e), letter = letterOf(e);
+      if (digit) press(digit);
+      else if (letter) press(letter);
       else if (k === 'Backspace') { e.preventDefault(); press('del'); }
       else if (k === 'Enter') {
         e.preventDefault();
         if (!$('next-btn').hidden) onNext(); else press('ok');
       }
     });
-    document.addEventListener('keyup', (e) => { const d = KEY_DIRS[e.key]; if (d) releaseDir(d); });
+    document.addEventListener('keyup', (e) => { const d = dirOf(e); if (d) releaseDir(d); });
     window.addEventListener('blur', () => { heldDirs.length = 0; document.querySelectorAll('.pad').forEach(b => b.classList.remove('held')); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) heldDirs.length = 0; });
 
     $('keypad').addEventListener('click', (e) => {
       const k = e.target.closest('.key');
