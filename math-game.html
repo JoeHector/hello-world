@@ -7,12 +7,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* 版面：單欄的繪本冒險，上方是旅程地圖，下方是任務卡與數字鍵盤 */
+    /* 版面：上方是可以左右走動的橫向世界，下方是操作區（走路按鈕，或遇到任務 / 野獸時的題目卡） */
     :root {
       --sky: #cfeeff;
-      --grass: #9ad66a;
-      --grass-dark: #6fb544;
-      --road: #e9c98f;
+      --sky-low: #eaf8ff;
+      --hill: #b7e08f;
+      --hill-far: #d3ecb8;
+      --grass: #8fce5c;
+      --grass-dark: #5fa83a;
+      --dirt: #d9b27a;
+      --dirt-dark: #b98d4f;
       --paper: #fffaf0;
       --ink: #3a2e22;
       --muted: #8a7a66;
@@ -23,6 +27,7 @@
       --green: #2fa85c;
       --green-dark: #23854a;
       --red: #e0485a;
+      --red-dark: #b8303f;
       --gold: #f5b82e;
       --line: #eadcc2;
       --shadow: 0 5px 0 rgba(58, 46, 34, 0.14);
@@ -33,7 +38,7 @@
 
     body {
       font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Heiti TC", sans-serif;
-      background: linear-gradient(180deg, var(--sky) 0%, #f3fbe9 55%, #fff6dc 100%);
+      background: linear-gradient(180deg, var(--sky) 0%, #f3fbe9 50%, #fff6dc 100%);
       color: var(--ink);
       min-height: 100vh;
       display: flex;
@@ -46,9 +51,9 @@
 
     [hidden] { display: none !important; }
 
-    .app { width: 100%; max-width: 480px; }
+    .app { width: 100%; max-width: 520px; }
 
-    .screen { display: none; flex-direction: column; gap: 14px; animation: pop .3s ease; }
+    .screen { display: none; flex-direction: column; gap: 12px; animation: pop .3s ease; }
     .screen.active { display: flex; }
     @keyframes pop { from { transform: scale(.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -62,50 +67,33 @@
     .card h2 { font-size: 1.05rem; margin-bottom: 10px; }
 
     /* ---------- 開始畫面 ---------- */
-    .hero { text-align: center; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; }
-    .hero .scene { font-size: 3rem; letter-spacing: 6px; }
+    .hero { text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+    .hero-art { display: flex; align-items: flex-end; gap: 14px; font-size: 2.8rem; }
+    .hero-art svg { width: 64px; height: 74px; }
     .hero h1 { font-size: 2rem; text-wrap: balance; }
     .hero p { color: var(--muted); line-height: 1.6; text-wrap: balance; }
 
     .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .options.two { grid-template-columns: repeat(2, 1fr); }
-
     .opt {
-      border: 3px solid var(--line);
-      background: #fff;
-      border-radius: 14px;
-      padding: 10px 4px;
-      font-size: 1rem;
-      font-weight: bold;
-      color: var(--ink);
-      cursor: pointer;
-      font-family: inherit;
-      transition: transform .1s;
+      border: 3px solid var(--line); background: #fff; border-radius: 14px; padding: 10px 4px;
+      font-size: 1rem; font-weight: bold; color: var(--ink); cursor: pointer; font-family: inherit; transition: transform .1s;
     }
     .opt small { display: block; font-size: .75rem; color: var(--muted); font-weight: normal; margin-top: 2px; }
     .opt .big { font-size: 1.4rem; display: block; }
     .opt.selected { border-color: var(--accent); background: #fff0e4; }
     .opt:active { transform: scale(.95); }
-    .opt:focus-visible, .btn:focus-visible, .key:focus-visible, .icon-btn:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+    .opt:focus-visible, .btn:focus-visible, .key:focus-visible, .icon-btn:focus-visible, .move:focus-visible, .tool:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
-    .name-row { display: flex; gap: 8px; align-items: center; }
     .name-row input {
-      flex: 1; min-width: 0; font: inherit; font-size: 1.2rem; font-weight: bold; color: var(--ink);
+      width: 100%; font: inherit; font-size: 1.2rem; font-weight: bold; color: var(--ink);
       border: 3px solid var(--line); border-radius: 14px; padding: 10px 12px; background: #fff;
     }
     .name-row input:focus { outline: none; border-color: var(--accent); }
 
     .btn {
-      border: none;
-      border-radius: 18px;
-      padding: 15px;
-      font-size: 1.3rem;
-      font-weight: bold;
-      font-family: inherit;
-      color: #fff;
-      background: var(--accent);
-      box-shadow: 0 6px 0 var(--accent-dark);
-      cursor: pointer;
+      border: none; border-radius: 18px; padding: 15px; font-size: 1.3rem; font-weight: bold; font-family: inherit;
+      color: #fff; background: var(--accent); box-shadow: 0 6px 0 var(--accent-dark); cursor: pointer;
       transition: transform .1s, box-shadow .1s;
     }
     .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--accent-dark); }
@@ -113,78 +101,150 @@
     .btn.secondary:active { box-shadow: 0 2px 0 var(--blue-dark); }
     .btn.go { background: var(--green); box-shadow: 0 6px 0 var(--green-dark); width: 100%; }
     .btn.go:active { box-shadow: 0 2px 0 var(--green-dark); }
+    .btn.fight { background: var(--red); box-shadow: 0 6px 0 var(--red-dark); width: 100%; }
+    .btn.fight:active { box-shadow: 0 2px 0 var(--red-dark); }
 
     .best { text-align: center; color: var(--muted); font-size: .95rem; }
 
-    /* ---------- 旅程畫面 ---------- */
-    .topbar { display: flex; align-items: center; gap: 8px; }
+    /* ---------- 冒險畫面 ---------- */
+    .hud { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .icon-btn {
-      border: 3px solid var(--line); background: var(--paper); border-radius: 14px; width: 46px; height: 46px;
-      font-size: 1.3rem; box-shadow: var(--shadow); cursor: pointer; flex: none;
+      border: 3px solid var(--line); background: var(--paper); border-radius: 14px; width: 44px; height: 44px;
+      font-size: 1.2rem; box-shadow: var(--shadow); cursor: pointer; flex: none;
     }
-    .trip-title { flex: 1; min-width: 0; font-weight: bold; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .pill {
       background: var(--paper); border: 3px solid var(--line); border-radius: 14px; padding: 6px 10px; font-weight: bold;
       box-shadow: var(--shadow); white-space: nowrap; font-variant-numeric: tabular-nums;
     }
+    .pill.hearts { letter-spacing: 1px; font-size: .95rem; }
     .pill.bump { animation: bump .5s; }
-    @keyframes bump { 40% { transform: scale(1.25); } }
+    @keyframes bump { 40% { transform: scale(1.2); } }
+    .hud .spacer { flex: 1; }
 
-    .map {
-      position: relative;
-      height: 104px;
-      border-radius: 22px;
-      border: 3px solid var(--grass-dark);
+    .stage {
+      position: relative; height: 236px; border-radius: 22px; overflow: hidden;
+      border: 3px solid var(--grass-dark); box-shadow: var(--shadow);
+      background: linear-gradient(180deg, var(--sky) 0%, var(--sky-low) 70%);
+      user-select: none; -webkit-user-select: none;
+      transition: height .3s;
+    }
+    .stage.compact { height: 176px; }
+    .stage.compact .progress-text { display: none; }
+    .clouds, .hills { position: absolute; left: 0; right: 0; pointer-events: none; }
+    .clouds {
+      top: 0; height: 90px;
       background:
-        radial-gradient(circle at 12% 30%, #fff 0 10px, transparent 11px),
-        radial-gradient(circle at 18% 26%, #fff 0 13px, transparent 14px),
-        radial-gradient(circle at 70% 22%, #fff 0 9px, transparent 10px),
-        radial-gradient(circle at 75% 18%, #fff 0 12px, transparent 13px),
-        linear-gradient(180deg, var(--sky) 0 46%, var(--grass) 46% 100%);
-      overflow: hidden;
-      box-shadow: var(--shadow);
+        radial-gradient(circle at 60px 34px, #fff 0 14px, transparent 15px),
+        radial-gradient(circle at 82px 28px, #fff 0 18px, transparent 19px),
+        radial-gradient(circle at 104px 36px, #fff 0 12px, transparent 13px),
+        radial-gradient(circle at 250px 54px, #fff 0 10px, transparent 11px),
+        radial-gradient(circle at 268px 48px, #fff 0 14px, transparent 15px);
+      background-size: 360px 90px;
+      background-repeat: repeat-x;
     }
-    .road {
-      position: absolute; left: 4%; right: 4%; top: 66px; height: 14px; border-radius: 8px;
-      background: repeating-linear-gradient(90deg, var(--road) 0 14px, #f3dcae 14px 22px);
-      border: 2px solid #d3ae6c;
+    .hills {
+      bottom: 44px; height: 120px;
+      background:
+        radial-gradient(ellipse 120px 70px at 90px 120px, var(--hill) 98%, transparent 100%),
+        radial-gradient(ellipse 150px 90px at 260px 125px, var(--hill-far) 98%, transparent 100%),
+        radial-gradient(ellipse 100px 60px at 400px 120px, var(--hill) 98%, transparent 100%);
+      background-size: 480px 120px;
+      background-repeat: repeat-x;
     }
-    .road-done {
-      position: absolute; left: 4%; top: 66px; height: 14px; border-radius: 8px; width: 0;
-      background: var(--gold); border: 2px solid #d39a14; transition: width 1.2s ease-in-out;
+    .world { position: absolute; top: 0; left: 0; height: 100%; will-change: transform; }
+    .ground {
+      position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
+      background: linear-gradient(180deg, var(--grass) 0 12px, var(--grass-dark) 12px 15px, var(--dirt) 15px 100%);
     }
-    .stop {
-      position: absolute; top: 58px; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%;
-      background: #fff; border: 3px solid #d3ae6c; display: flex; align-items: center; justify-content: center;
-      font-size: .95rem;
+    .ground::after {
+      content: ""; position: absolute; left: 0; right: 0; top: 22px; height: 10px;
+      background: repeating-linear-gradient(90deg, var(--dirt-dark) 0 6px, transparent 6px 40px);
+      opacity: .35;
     }
-    .stop.done { background: #fff3c9; border-color: var(--gold); }
-    .stop.current { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(232, 116, 59, .3); }
-    .stop.end { width: 38px; height: 38px; margin-left: -19px; top: 52px; font-size: 1.3rem; border-color: var(--accent); }
-    .stop.start { font-size: 1rem; }
-    .knight {
-      position: absolute; top: 14px; font-size: 2.3rem; margin-left: -20px; line-height: 1;
-      transition: left 1.2s ease-in-out; filter: drop-shadow(0 3px 0 rgba(0,0,0,.15));
-    }
-    .knight.walking { animation: trot .3s ease-in-out infinite alternate; }
-    @keyframes trot { to { transform: translateY(-6px); } }
+    .deco { position: absolute; bottom: 40px; transform: translateX(-50%); font-size: 2rem; opacity: .9; pointer-events: none; }
+    .deco.small { font-size: 1.2rem; bottom: 42px; }
 
-    .quest { display: flex; flex-direction: column; gap: 12px; }
-    .quest-head { display: flex; gap: 12px; align-items: center; }
-    .npc {
-      font-size: 2.6rem; width: 64px; height: 64px; flex: none; border-radius: 18px; background: #fff;
+    .ent { position: absolute; bottom: 40px; transform: translateX(-50%); text-align: center; line-height: 1; transition: opacity .6s, transform .6s; }
+    .ent .body { font-size: 2.9rem; display: block; }
+    .ent.beast .body { font-size: 3.3rem; }
+    .ent.boss .body { font-size: 4.6rem; }
+    .ent.chest .body { font-size: 2rem; }
+    .ent.castle .body { font-size: 5.5rem; }
+    .ent .bubble {
+      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 4px;
+      background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 1px 6px; font-size: 1rem; white-space: nowrap;
+      animation: hover 1s ease-in-out infinite alternate;
+    }
+    .ent.beast .bubble { background: #fdecee; border-color: var(--red); color: var(--red-dark); font-weight: bold; font-size: .8rem; }
+    @keyframes hover { to { transform: translateX(-50%) translateY(-4px); } }
+    .ent.defeated { opacity: 0; transform: translateX(-50%) scale(.3) rotate(25deg); }
+    .ent.opened { opacity: 0; transform: translateX(-50%) translateY(-30px); }
+    .ent.hit .body { animation: hit .45s; }
+    @keyframes hit { 0%,100% { transform: translateX(0); filter: none; } 30% { transform: translateX(14px); filter: brightness(1.6) saturate(2) hue-rotate(-30deg); } 60% { transform: translateX(-6px); } }
+    .ent.lunge .body { animation: lunge .45s; }
+    @keyframes lunge { 40% { transform: translateX(-34px) scale(1.08); } }
+
+    .knight { position: absolute; bottom: 40px; width: 56px; margin-left: -28px; }
+    .knight .tag {
+      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px;
+      font-size: .75rem; font-weight: bold; background: rgba(255,255,255,.85); border-radius: 8px; padding: 0 6px; white-space: nowrap;
+    }
+    .knight .sprite { display: block; }
+    .knight svg { display: block; width: 56px; height: 64px; transition: transform .15s; }
+    .knight.left svg { transform: scaleX(-1); }
+    .knight.walking .sprite { animation: step .28s ease-in-out infinite alternate; }
+    @keyframes step { to { transform: translateY(-5px) rotate(-3deg); } }
+    .knight.attack { animation: attack .45s; }
+    @keyframes attack { 40% { transform: translateX(30px); } }
+    .knight.hurt { animation: hurt .5s; }
+    @keyframes hurt { 0%,100% { transform: translateX(0); filter: none; } 25% { transform: translateX(-12px); filter: brightness(1.5) sepia(1) hue-rotate(-50deg) saturate(4); } 60% { transform: translateX(4px); } }
+
+    .float {
+      position: absolute; transform: translateX(-50%); font-weight: bold; font-size: 1.2rem; pointer-events: none;
+      animation: floatUp 1.1s ease-out forwards; text-shadow: 0 2px 0 #fff;
+    }
+    @keyframes floatUp { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -46px); } }
+
+    .progress-text {
+      position: absolute; top: 8px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 8px;
+      font-size: .8rem; font-weight: bold; pointer-events: none;
+    }
+    .progress-text span { background: rgba(255,255,255,.8); border-radius: 8px; padding: 2px 8px; }
+
+    /* 走路按鈕 */
+    .controls { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; align-items: stretch; }
+    .move {
+      border: 3px solid var(--line); background: #fff; border-radius: 20px; font-size: 2.2rem; color: var(--ink);
+      box-shadow: var(--shadow); cursor: pointer; padding: 18px 0; touch-action: none; user-select: none; -webkit-user-select: none;
+      font-family: inherit;
+    }
+    .move.held { transform: translateY(4px); box-shadow: 0 1px 0 rgba(58,46,34,.14); background: #fff0e4; border-color: var(--accent); }
+    .guide { display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 4px; font-size: .95rem; color: var(--muted); line-height: 1.5; }
+    .guide b { color: var(--ink); font-size: 1.05rem; }
+
+    /* 任務 / 戰鬥卡 */
+    .enc { display: flex; flex-direction: column; gap: 12px; }
+    .enc-head { display: flex; gap: 12px; align-items: center; }
+    .portrait {
+      font-size: 2.5rem; width: 62px; height: 62px; flex: none; border-radius: 18px; background: #fff;
       border: 3px solid var(--line); display: flex; align-items: center; justify-content: center;
     }
-    .quest-head .meta { flex: 1; min-width: 0; }
-    .quest-no { color: var(--accent); font-weight: bold; font-size: .85rem; letter-spacing: .08em; }
-    .quest-title { font-size: 1.3rem; text-wrap: balance; }
-    .story { font-size: 1.2rem; line-height: 1.75; }
-    .story b { color: var(--blue-dark); font-size: 1.35rem; padding: 0 2px; }
+    .enc.battle .portrait { border-color: var(--red); background: #fdecee; }
+    .enc-head .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .enc-kind { color: var(--accent); font-weight: bold; font-size: .85rem; letter-spacing: .08em; }
+    .enc.battle .enc-kind { color: var(--red); }
+    .enc-title { font-size: 1.25rem; text-wrap: balance; }
+    .hpbar { display: flex; gap: 4px; align-items: center; font-size: .85rem; font-weight: bold; color: var(--red-dark); }
+    .hpbar i { display: block; width: 22px; height: 12px; border-radius: 4px; background: var(--red); border: 2px solid var(--red-dark); }
+    .hpbar i.empty { background: #f4d6da; border-color: #e8b4bb; }
+
+    .story { font-size: 1.18rem; line-height: 1.75; }
+    .story b { color: var(--blue-dark); font-size: 1.32rem; padding: 0 2px; }
     .story .ask { display: block; margin-top: 6px; font-weight: bold; }
 
     .answer-row { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.4rem; font-weight: bold; flex-wrap: wrap; }
     .answer-box {
-      min-width: 96px; padding: 0 12px; height: 62px; border-radius: 16px; font-size: 2.2rem;
+      min-width: 96px; padding: 0 12px; height: 60px; border-radius: 16px; font-size: 2.1rem;
       border: 4px dashed var(--accent); display: inline-flex; align-items: center; justify-content: center;
       color: var(--accent); background: #fff; font-variant-numeric: tabular-nums;
     }
@@ -193,24 +253,17 @@
     @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 
     .tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-    .tool {
-      border: 3px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit;
-      font-weight: bold; color: var(--ink); cursor: pointer;
-    }
+    .tool { border: 3px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: bold; color: var(--ink); cursor: pointer; }
     .tool:active { transform: scale(.96); }
 
     .hint { border-top: 3px dashed var(--line); padding-top: 12px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
     .hint-label { color: var(--muted); font-weight: bold; }
-    .equation { font-size: 2.2rem; font-weight: bold; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+    .equation { font-size: 2.1rem; font-weight: bold; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
     .equation .op { color: var(--accent); }
 
     /* 直式 */
-    .vertical {
-      --cell: 52px;
-      display: inline-grid; justify-content: center; column-gap: 6px; row-gap: 4px;
-      font-size: 2.3rem; font-weight: bold; margin: 0 auto; font-variant-numeric: tabular-nums;
-    }
-    .vertical .cell { width: var(--cell); height: 52px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .vertical { --cell: 52px; display: inline-grid; justify-content: center; column-gap: 6px; row-gap: 4px; font-size: 2.2rem; font-weight: bold; margin: 0 auto; font-variant-numeric: tabular-nums; }
+    .vertical .cell { width: var(--cell); height: 50px; display: flex; align-items: center; justify-content: center; position: relative; }
     .vertical .op-cell { color: var(--accent); }
     .vertical .line { grid-column: 1 / -1; border-top: 5px solid var(--ink); border-radius: 3px; margin: 2px 0 4px; }
     .vertical .helper { height: 32px; font-size: 1rem; color: var(--blue-dark); border: none; background: none; font-family: inherit; font-weight: bold; }
@@ -225,34 +278,36 @@
     .vbox.wrong { border-style: solid; border-color: var(--red); color: var(--red); background: #fdecee; animation: shake .4s; box-shadow: none; }
     .v-hint { font-size: .9rem; color: var(--muted); line-height: 1.5; }
 
-    .feedback { min-height: 28px; text-align: center; font-size: 1.2rem; font-weight: bold; line-height: 1.5; }
+    .feedback { min-height: 26px; text-align: center; font-size: 1.12rem; font-weight: bold; line-height: 1.55; }
     .feedback.good { color: var(--green); }
     .feedback.bad { color: var(--red); }
+    .feedback:empty { display: none; }
 
-    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
     .key {
-      border: 3px solid var(--line); border-radius: 16px; padding: 10px 0; font-size: 1.7rem; font-weight: bold;
+      border: 3px solid var(--line); border-radius: 16px; padding: 9px 0; font-size: 1.6rem; font-weight: bold;
       font-family: inherit; background: #fff; color: var(--ink); box-shadow: var(--shadow); cursor: pointer;
       transition: transform .08s, box-shadow .08s;
     }
     .key:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(58,46,34,.14); }
     .key.del { color: var(--red); }
     .key.ok { background: var(--green); border-color: var(--green-dark); color: #fff; box-shadow: 0 5px 0 var(--green-dark); }
-
-    .walking-note { text-align: center; color: var(--muted); font-size: 1.15rem; padding: 26px 0; }
+    #next-btn { margin-top: 12px; }
 
     /* ---------- 結果畫面 ---------- */
-    .castle { font-size: 4.5rem; text-align: center; animation: float 1.2s ease-in-out infinite alternate; }
-    @keyframes float { to { transform: translateY(-8px); } }
+    .castle-big { font-size: 4.5rem; text-align: center; animation: floaty 1.2s ease-in-out infinite alternate; }
+    @keyframes floaty { to { transform: translateY(-8px); } }
     .result-title { text-align: center; font-size: 1.7rem; text-wrap: balance; }
     .result-stars { text-align: center; font-size: 2.4rem; letter-spacing: 4px; }
-    .result-detail { text-align: center; font-size: 1.15rem; line-height: 1.9; }
-    .review { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+    .result-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat { background: #fff; border: 3px solid var(--line); border-radius: 16px; padding: 10px; text-align: center; }
+    .stat .num { font-size: 1.6rem; font-weight: bold; font-variant-numeric: tabular-nums; }
+    .stat .lbl { color: var(--muted); font-size: .9rem; }
+    .review { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
     .review-item { background: #fdecee; border-radius: 12px; padding: 10px 12px; line-height: 1.6; font-size: 1rem; }
     .review-item .eq { font-weight: bold; color: var(--green-dark); }
     .review-item .yours { color: var(--red); }
 
-    /* 確認視窗 */
     .modal { position: fixed; inset: 0; background: rgba(58,46,34,.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
     .modal-box { background: var(--paper); border-radius: 22px; padding: 22px 18px; max-width: 340px; width: 100%; text-align: center; display: flex; flex-direction: column; gap: 14px; }
     .modal-box p { font-size: 1.15rem; line-height: 1.6; }
@@ -262,9 +317,11 @@
     .confetti { position: fixed; top: -20px; width: 12px; height: 12px; pointer-events: none; z-index: 99; animation: fall linear forwards; }
     @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
-    @media (max-width: 360px) {
-      .vertical { --cell: 44px; font-size: 2rem; }
-      .story { font-size: 1.1rem; }
+    @media (max-width: 380px) {
+      .vertical { --cell: 44px; font-size: 1.9rem; }
+      .story { font-size: 1.08rem; }
+      .pill { padding: 5px 7px; }
+      .pill.hearts { font-size: .8rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -273,14 +330,34 @@
   </style>
 </head>
 <body>
+  <!-- 騎士圖案（面向右邊） -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="knight-svg" viewBox="0 0 48 56">
+      <path d="M22 6 q5 -6 11 0 q-5 -1 -8 4z" fill="#e0485a" stroke="#3a2e22" stroke-width="1" />
+      <rect x="15" y="22" width="18" height="18" rx="5" fill="#3d8fd6" stroke="#3a2e22" stroke-width="1.5" />
+      <rect x="15" y="32" width="18" height="3" fill="#f5b82e" />
+      <rect x="17" y="40" width="5" height="9" rx="2" fill="#6b5640" />
+      <rect x="26" y="40" width="5" height="9" rx="2" fill="#6b5640" />
+      <rect x="16" y="48" width="7" height="5" rx="2" fill="#3a2e22" />
+      <rect x="25" y="48" width="8" height="5" rx="2" fill="#3a2e22" />
+      <rect x="15" y="6" width="18" height="17" rx="8" fill="#c9d3dd" stroke="#3a2e22" stroke-width="1.5" />
+      <rect x="23" y="12" width="10" height="3.5" rx="1.7" fill="#3a2e22" />
+      <rect x="37" y="7" width="4" height="22" rx="1.5" fill="#eef3f7" stroke="#3a2e22" stroke-width="1.2" />
+      <rect x="33" y="28" width="12" height="3.5" rx="1.5" fill="#f5b82e" stroke="#3a2e22" stroke-width="1" />
+      <rect x="37.5" y="31.5" width="3" height="6" rx="1" fill="#7a4a2a" />
+      <path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="#e8743b" stroke="#3a2e22" stroke-width="1.5" />
+      <path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="#f5b82e" />
+    </symbol>
+  </svg>
+
   <div class="app">
 
     <!-- 開始畫面 -->
     <section class="screen active" id="start-screen">
       <div class="hero">
-        <div class="scene" aria-hidden="true">🏇🗺️🏰</div>
+        <div class="hero-art" aria-hidden="true"><svg><use href="#knight-svg" /></svg><span>🐺</span><span>🏰</span></div>
         <h1>小騎士數學冒險</h1>
-        <p>騎士要從小村莊出發，前往水晶城堡。<br>路上會遇到需要幫忙的人，算對數學就能完成任務！</p>
+        <p>左右移動騎士，幫助路上的村民、打倒擋路的野獸，<br>一路前往水晶城堡！每一關都要靠數學解決。</p>
       </div>
 
       <div class="card">
@@ -317,43 +394,59 @@
       </div>
 
       <div class="card">
-        <h2>④ 旅程有多長？</h2>
+        <h2>④ 冒險有多長？</h2>
         <div class="options" data-group="count">
-          <button class="opt" data-value="5"><span class="big">5</span>個任務</button>
-          <button class="opt selected" data-value="8"><span class="big">8</span>個任務</button>
-          <button class="opt" data-value="12"><span class="big">12</span>個任務</button>
+          <button class="opt" data-value="5"><span class="big">5</span>關</button>
+          <button class="opt selected" data-value="8"><span class="big">8</span>關</button>
+          <button class="opt" data-value="12"><span class="big">12</span>關</button>
         </div>
       </div>
 
-      <button class="btn" id="start-btn">出發冒險 🏇</button>
+      <button class="btn" id="start-btn">出發冒險 ⚔️</button>
       <p class="best" id="best-text"></p>
     </section>
 
-    <!-- 旅程畫面 -->
+    <!-- 冒險畫面 -->
     <section class="screen" id="game-screen">
-      <div class="topbar">
+      <div class="hud">
         <button class="icon-btn" id="quit-btn" aria-label="回到首頁">🏠</button>
-        <div class="trip-title" id="trip-title">小騎士的冒險</div>
+        <div class="pill hearts" id="heart-pill" aria-label="體力"></div>
+        <div class="spacer"></div>
         <div class="pill" id="coin-pill">🪙 <span id="coin-count">0</span></div>
         <div class="pill" id="star-pill">⭐ <span id="star-count">0</span></div>
       </div>
 
-      <div class="map" id="map" aria-hidden="true">
-        <div class="road"></div>
-        <div class="road-done" id="road-done"></div>
-        <div id="stops"></div>
-        <div class="knight" id="knight">🏇</div>
+      <div class="stage" id="stage">
+        <div class="clouds" id="clouds"></div>
+        <div class="hills" id="hills"></div>
+        <div class="world" id="world">
+          <div class="ground"></div>
+          <div id="decos"></div>
+          <div id="ents"></div>
+          <div class="knight" id="knight">
+            <span class="tag" id="knight-tag">小騎士</span>
+            <span class="sprite"><svg><use href="#knight-svg" /></svg></span>
+          </div>
+        </div>
+        <div class="progress-text"><span id="progress-left">已過 0 關</span><span id="progress-right">🏰 還有 8 關</span></div>
       </div>
 
-      <div class="card">
-        <div class="walking-note" id="walking-note">🏇 騎士正在趕路…</div>
+      <!-- 走路 -->
+      <div class="controls" id="controls">
+        <button class="move" id="left-btn" aria-label="往左走">◀</button>
+        <div class="guide" id="guide"><b>按住箭頭走路</b>往右走，去水晶城堡！</div>
+        <button class="move" id="right-btn" aria-label="往右走">▶</button>
+      </div>
 
-        <div class="quest" id="quest" hidden>
-          <div class="quest-head">
-            <div class="npc" id="npc">🐔</div>
+      <!-- 任務 / 戰鬥 -->
+      <div id="encounter" hidden>
+        <div class="card enc" id="enc">
+          <div class="enc-head">
+            <div class="portrait" id="portrait">🐔</div>
             <div class="meta">
-              <div class="quest-no" id="quest-no">任務 1 / 8</div>
-              <h2 class="quest-title" id="quest-title">找回走失的雞</h2>
+              <div class="enc-kind" id="enc-kind">村民的請求</div>
+              <h2 class="enc-title" id="enc-title">找回走失的雞</h2>
+              <div class="hpbar" id="hpbar" hidden></div>
             </div>
           </div>
 
@@ -378,37 +471,37 @@
               <div class="v-hint" id="v-hint"></div>
             </div>
           </div>
+
+          <div class="feedback" id="feedback"></div>
         </div>
+
+        <div class="keypad" id="keypad">
+          <button class="key" data-key="1">1</button>
+          <button class="key" data-key="2">2</button>
+          <button class="key" data-key="3">3</button>
+          <button class="key" data-key="4">4</button>
+          <button class="key" data-key="5">5</button>
+          <button class="key" data-key="6">6</button>
+          <button class="key" data-key="7">7</button>
+          <button class="key" data-key="8">8</button>
+          <button class="key" data-key="9">9</button>
+          <button class="key del" data-key="del" aria-label="刪除">⌫</button>
+          <button class="key" data-key="0">0</button>
+          <button class="key ok" data-key="ok" aria-label="確定">✔</button>
+        </div>
+
+        <button class="btn go" id="next-btn" hidden>繼續冒險 ▶</button>
       </div>
-
-      <div class="feedback" id="feedback"></div>
-
-      <div class="keypad" id="keypad">
-        <button class="key" data-key="1">1</button>
-        <button class="key" data-key="2">2</button>
-        <button class="key" data-key="3">3</button>
-        <button class="key" data-key="4">4</button>
-        <button class="key" data-key="5">5</button>
-        <button class="key" data-key="6">6</button>
-        <button class="key" data-key="7">7</button>
-        <button class="key" data-key="8">8</button>
-        <button class="key" data-key="9">9</button>
-        <button class="key del" data-key="del" aria-label="刪除">⌫</button>
-        <button class="key" data-key="0">0</button>
-        <button class="key ok" data-key="ok" aria-label="確定">✔</button>
-      </div>
-
-      <button class="btn go" id="next-btn" hidden>繼續前進 ▶</button>
     </section>
 
     <!-- 結果畫面 -->
     <section class="screen" id="result-screen">
-      <div class="castle" aria-hidden="true">🏰</div>
+      <div class="castle-big" aria-hidden="true">🏰</div>
       <h2 class="result-title" id="result-title">抵達水晶城堡！</h2>
       <div class="result-stars" id="result-stars"></div>
       <div class="card result-detail" id="result-detail"></div>
       <div class="card" id="review-card">
-        <h2>📝 再看一次有點難的任務</h2>
+        <h2>📝 再看一次有點難的題目</h2>
         <div class="review" id="review"></div>
       </div>
       <button class="btn" id="again-btn">再冒險一次 🔁</button>
@@ -429,80 +522,109 @@
   <script>
     // ---------- 設定 ----------
     const settings = { mode: 'add', level: 10, layout: 'h', count: 8, name: '小騎士' };
+    const SPEED = 200;        // 騎士每秒走幾像素
+    const GAP = 74;           // 遇到村民或野獸時，騎士停在多遠的地方
+    const SPACING = 430;      // 每一關之間的距離
+    const MAX_HEARTS = 5;
 
-    const PRAISE = ['答對了！你好棒！', '太厲害了！', '完全正確！', '好聰明喔！', '讚啦！'];
+    const PRAISE = ['答對了！', '太厲害了！', '完全正確！', '好聰明！', '讚啦！'];
     const RETRY  = ['差一點點，看看提示再想想 🤔', '沒關係，再試一次！💪', '加油，你可以的！🌈'];
 
-    // ---------- 應用題題庫 ----------
-    // text(a, b, n)：n 是騎士的名字。題目裡的數字用 <b> 標示。
-    const QUESTS = {
+    // ---------- 村民任務題庫 ----------
+    // text(a, b, n, B)：n 是騎士名字，B 是野獸名字
+    const NPC_QUESTS = {
       '+': [
         { icon: '🐔', title: '找回走失的雞', unit: '隻',
           text: (a, b) => `農夫阿德的雞舍裡原本有 <b>${a}</b> 隻雞，騎士又在草叢裡找回 <b>${b}</b> 隻。<span class="ask">現在雞舍裡一共有幾隻雞？</span>`,
-          win: '雞全部平安回家了，農夫阿德好開心！' },
-        { icon: '🍎', title: '幫奶奶摘蘋果', unit: '顆',
+          win: '雞全部平安回家了！' },
+        { icon: '👵', title: '幫奶奶摘蘋果', unit: '顆',
           text: (a, b) => `果園的老奶奶早上摘了 <b>${a}</b> 顆蘋果，下午又摘了 <b>${b}</b> 顆。<span class="ask">奶奶今天一共摘了幾顆蘋果？</span>`,
-          win: '奶奶送你一顆最紅的蘋果當點心！' },
-        { icon: '💰', title: '路邊的寶箱', unit: '枚',
-          text: (a, b, n) => `${n}在路邊打開一個寶箱，裡面有 <b>${a}</b> 枚金幣。${n}的錢袋裡本來就有 <b>${b}</b> 枚金幣。<span class="ask">現在${n}一共有幾枚金幣？</span>`,
-          win: '錢袋變得沉甸甸的！' },
-        { icon: '🐑', title: '牧場的羊群', unit: '隻',
+          win: '奶奶送你一顆最紅的蘋果！' },
+        { icon: '🧑‍🌾', title: '牧場的羊群', unit: '隻',
           text: (a, b) => `牧羊人小米有 <b>${a}</b> 隻羊，他的哥哥比他<b>多</b> <b>${b}</b> 隻羊。<span class="ask">哥哥有幾隻羊？</span>`,
           win: '兄弟倆謝謝你幫忙數羊！' },
-        { icon: '🎯', title: '射箭大賽', unit: '分',
-          text: (a, b, n) => `射箭大賽第一回合，${n}得了 <b>${a}</b> 分，第二回合得了 <b>${b}</b> 分。<span class="ask">兩回合加起來一共是幾分？</span>`,
-          win: '你拿到射箭大賽的勳章！' },
-        { icon: '🍄', title: '小精靈的蘑菇籃', unit: '朵',
+        { icon: '🧚', title: '小精靈的蘑菇籃', unit: '朵',
           text: (a, b, n) => `森林小精靈的籃子裡有 <b>${a}</b> 朵蘑菇，${n}又幫忙採了 <b>${b}</b> 朵放進去。<span class="ask">籃子裡現在有幾朵蘑菇？</span>`,
-          win: '小精靈在你頭上灑了閃亮的魔法粉！' },
-        { icon: '🐟', title: '河邊的漁夫', unit: '條',
+          win: '小精靈灑了閃亮的魔法粉！' },
+        { icon: '🎣', title: '河邊的漁夫', unit: '條',
           text: (a, b) => `河邊的漁夫上午釣到 <b>${a}</b> 條魚，下午又釣到 <b>${b}</b> 條魚。<span class="ask">漁夫今天一共釣到幾條魚？</span>`,
-          win: '漁夫請你吃了一頓烤魚大餐！' },
-        { icon: '🧪', title: '魔法師的藥水', unit: '瓶',
+          win: '漁夫請你吃烤魚！' },
+        { icon: '🧙', title: '魔法師的藥水', unit: '瓶',
           text: (a, b) => `魔法師的架子上有 <b>${a}</b> 瓶紅色藥水和 <b>${b}</b> 瓶藍色藥水。<span class="ask">架子上的藥水一共有幾瓶？</span>`,
           win: '魔法師送你一瓶勇氣藥水！' },
-        { icon: '🌻', title: '花園的向日葵', unit: '朵',
-          text: (a, b) => `花園裡已經開了 <b>${a}</b> 朵向日葵，今天早上又開了 <b>${b}</b> 朵。<span class="ask">花園裡現在一共開了幾朵向日葵？</span>`,
-          win: '整片花園都在對你微笑！' },
+        { icon: '👨‍🍳', title: '廚師的派對', unit: '個',
+          text: (a, b) => `廚師烤了 <b>${a}</b> 個草莓蛋糕和 <b>${b}</b> 個巧克力蛋糕。<span class="ask">廚師一共烤了幾個蛋糕？</span>`,
+          win: '廚師請你吃了一塊蛋糕！' },
       ],
       '-': [
-        { icon: '🌉', title: '修好斷掉的木橋', unit: '塊',
+        { icon: '👷', title: '修好斷掉的木橋', unit: '塊',
           text: (a, b) => `河上的木橋需要 <b>${a}</b> 塊木板才能修好，工人們已經準備了 <b>${b}</b> 塊。<span class="ask">還需要幾塊木板？</span>`,
-          win: '木橋修好了，可以安全過河囉！' },
-        { icon: '🐉', title: '跟小龍比寶石', unit: '顆',
-          text: (a, b, n) => `山洞裡的小龍收集了 <b>${a}</b> 顆寶石，${n}收集了 <b>${b}</b> 顆寶石。<span class="ask">小龍比${n}多幾顆寶石？</span>`,
-          win: '小龍覺得你好聰明，跟你變成好朋友！' },
-        { icon: '🍞', title: '麵包店的早晨', unit: '個',
+          win: '木橋修好了！' },
+        { icon: '🥖', title: '麵包店的早晨', unit: '個',
           text: (a, b) => `麵包店一早烤了 <b>${a}</b> 個麵包，路過的旅人買走了 <b>${b}</b> 個。<span class="ask">店裡還剩下幾個麵包？</span>`,
           win: '老闆送你一個熱呼呼的麵包！' },
-        { icon: '🥕', title: '馬兒的點心', unit: '根',
-          text: (a, b, n) => `${n}的背包裡有 <b>${a}</b> 根紅蘿蔔，馬兒在路上吃掉了 <b>${b}</b> 根。<span class="ask">背包裡還剩下幾根紅蘿蔔？</span>`,
-          win: '馬兒吃飽了，跑得更快了！' },
         { icon: '💂', title: '城門守衛', unit: '支',
-          text: (a, b) => `城門守衛有 <b>${a}</b> 支長矛，弓箭手的箭比長矛<b>少</b> <b>${b}</b> 支。<span class="ask">弓箭手有幾支箭？</span>`,
-          win: '守衛打開城門讓你通過！' },
+          text: (a, b) => `守衛有 <b>${a}</b> 支長矛，弓箭手的箭比長矛<b>少</b> <b>${b}</b> 支。<span class="ask">弓箭手有幾支箭？</span>`,
+          win: '守衛向你敬禮！' },
         { icon: '🦉', title: '大樹上的鳥', unit: '隻',
           text: (a, b) => `大樹上一共停了 <b>${a}</b> 隻鳥，其中 <b>${b}</b> 隻是貓頭鷹，其他都是小麻雀。<span class="ask">小麻雀有幾隻？</span>`,
           win: '貓頭鷹告訴你一條近路！' },
         { icon: '🎈', title: '村莊的慶典', unit: '顆',
-          text: (a, b) => `村長準備了 <b>${a}</b> 顆氣球要辦慶典，已經送給小朋友 <b>${b}</b> 顆。<span class="ask">村長還剩下幾顆氣球？</span>`,
-          win: '大家邀請你一起跳舞慶祝！' },
-        { icon: '⛰️', title: '爬上高山', unit: '步',
-          text: (a, b, n) => `爬到山頂一共要走 <b>${a}</b> 步，${n}已經走了 <b>${b}</b> 步。<span class="ask">還要再走幾步才會到山頂？</span>`,
-          win: '你站在山頂，看到遠方的水晶城堡了！' },
+          text: (a, b) => `村長準備了 <b>${a}</b> 顆氣球，已經送給小朋友 <b>${b}</b> 顆。<span class="ask">村長還剩下幾顆氣球？</span>`,
+          win: '大家邀請你一起跳舞！' },
         { icon: '🐿️', title: '松鼠的松果', unit: '顆',
           text: (a, b) => `松鼠原本藏了 <b>${a}</b> 顆松果，冬天到了，牠吃掉了 <b>${b}</b> 顆。<span class="ask">松鼠還剩下幾顆松果？</span>`,
-          win: '松鼠開心地在樹上轉圈圈！' },
+          win: '松鼠開心地轉圈圈！' },
+        { icon: '🧒', title: '比賽撿貝殼', unit: '個',
+          text: (a, b) => `小安撿了 <b>${a}</b> 個貝殼，小樂撿了 <b>${b}</b> 個貝殼。<span class="ask">小安比小樂多撿幾個貝殼？</span>`,
+          win: '兩個人都說你算得好快！' },
       ],
     };
 
+    // ---------- 戰鬥題庫 ----------
+    const BATTLE_QUESTS = {
+      '+': [
+        { unit: '點', text: (a, b, n, B) => `${n}揮劍兩次，第一下對${B}造成 <b>${a}</b> 點傷害，第二下造成 <b>${b}</b> 點。<span class="ask">兩下一共造成幾點傷害？</span>` },
+        { unit: '顆', text: (a, b, n, B) => `${B}丟出 <b>${a}</b> 顆石頭，接著又丟出 <b>${b}</b> 顆。<span class="ask">${B}一共丟出幾顆石頭？算對就能用盾牌全部擋下！</span>` },
+        { unit: '支', text: (a, b, n, B) => `${n}的箭袋裡有 <b>${a}</b> 支箭，又在地上撿到 <b>${b}</b> 支。<span class="ask">現在一共有幾支箭可以射向${B}？</span>` },
+        { unit: '點', text: (a, b, n) => `${n}的攻擊力原本是 <b>${a}</b> 點，喝下力量藥水後又增加了 <b>${b}</b> 點。<span class="ask">現在攻擊力是幾點？</span>` },
+        { unit: '步', text: (a, b, n, B) => `${B}往前衝了 <b>${a}</b> 步，停下來又再衝了 <b>${b}</b> 步。<span class="ask">${B}一共衝了幾步？</span>` },
+        { unit: '點', text: (a, b, n, B) => `${B}的力氣有 <b>${a}</b> 點，${n}的力氣比牠<b>多</b> <b>${b}</b> 點。<span class="ask">${n}的力氣是幾點？</span>` },
+      ],
+      '-': [
+        { unit: '點', text: (a, b, n, B) => `${B}有 <b>${a}</b> 點生命，${n}的劍砍掉了 <b>${b}</b> 點。<span class="ask">${B}還剩下幾點生命？</span>` },
+        { unit: '點', text: (a, b, n) => `${n}有 <b>${a}</b> 點魔力，施放閃電術用掉了 <b>${b}</b> 點。<span class="ask">${n}還剩下幾點魔力？</span>` },
+        { unit: '公分', text: (a, b, n, B) => `${B}跳起來有 <b>${a}</b> 公分高，${n}跳起來有 <b>${b}</b> 公分高。<span class="ask">${B}比${n}多跳幾公分？</span>` },
+        { unit: '顆', text: (a, b, n, B) => `${B}偷走了村莊 <b>${a}</b> 顆蘋果，${n}已經搶回 <b>${b}</b> 顆。<span class="ask">還有幾顆蘋果要搶回來？</span>` },
+        { unit: '塊', text: (a, b, n, B) => `${B}用 <b>${a}</b> 塊大石頭堵住了路，${n}已經推開 <b>${b}</b> 塊。<span class="ask">還剩下幾塊石頭擋路？</span>` },
+        { unit: '點', text: (a, b, n, B) => `${n}的盾牌可以擋 <b>${a}</b> 點傷害，被${B}抓了一下，少了 <b>${b}</b> 點。<span class="ask">盾牌現在還可以擋幾點傷害？</span>` },
+      ],
+    };
+
+    const BEASTS = [
+      { icon: '🐺', name: '灰狼', hp: 2, reward: 3 },
+      { icon: '🐗', name: '野豬', hp: 2, reward: 3 },
+      { icon: '🦇', name: '洞窟蝙蝠', hp: 2, reward: 3 },
+      { icon: '🐍', name: '沼澤大蛇', hp: 2, reward: 3 },
+      { icon: '🕷️', name: '巨大蜘蛛', hp: 2, reward: 3 },
+      { icon: '🦂', name: '沙漠蠍子', hp: 2, reward: 3 },
+      { icon: '🐻', name: '暴躁大熊', hp: 3, reward: 4 },
+      { icon: '🦍', name: '山頂巨猿', hp: 3, reward: 4 },
+    ];
+    const BOSS = { icon: '🐲', name: '守城飛龍', hp: 3, reward: 8, boss: true };
+
+    const DECOS = ['🌲', '🌳', '🌳', '🌲', '🪨', '🌾'];
+    const SMALL_DECOS = ['🌼', '🌷', '🍄', '🌱'];
+
     let state = null;
-    const bags = { '+': [], '-': [] };
+    let bags = {};
 
     const $ = (id) => document.getElementById(id);
     const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const opSign = (op) => (op === '+' ? '+' : '−');
+    const stripTags = (html) => html.replace(/<[^>]+>/g, '');
 
     // ---------- 開始畫面 ----------
     document.querySelectorAll('.options').forEach(group => {
@@ -517,13 +639,13 @@
         showBest();
       });
     });
-
-    try {
-      const saved = localStorage.getItem('knight-name');
-      if (saved) $('knight-name').value = saved;
-    } catch (e) {}
+    try { const saved = localStorage.getItem('knight-name'); if (saved) $('knight-name').value = saved; } catch (e) {}
 
     // ---------- 出題 ----------
+    function pickOp() {
+      return settings.mode === 'mix' ? pick(['+', '-']) : (settings.mode === 'add' ? '+' : '-');
+    }
+
     function makeNumbers(op) {
       const L = settings.level;
       let a, b;
@@ -537,107 +659,256 @@
       return { a, b, answer: op === '+' ? a + b : a - b };
     }
 
-    function drawTemplate(op) {
-      if (bags[op].length === 0) bags[op] = shuffle(QUESTS[op]);
-      return bags[op].pop();
+    function drawTemplate(kind, op) {
+      const key = kind + op;
+      const pool = kind === 'npc' ? NPC_QUESTS[op] : BATTLE_QUESTS[op];
+      if (!bags[key] || bags[key].length === 0) bags[key] = shuffle(pool);
+      return bags[key].pop();
     }
 
+    function makeQuestion(kind, beastName) {
+      const op = pickOp();
+      const tpl = drawTemplate(kind, op);
+      const nums = makeNumbers(op);
+      const html = tpl.text(nums.a, nums.b, settings.name, beastName || '');
+      return { kind, op, tpl, ...nums, html, unit: tpl.unit, tries: 0, hinted: false };
+    }
+
+    // ---------- 建立世界 ----------
     function startGame() {
       const name = $('knight-name').value.trim() || '小騎士';
       settings.name = name;
       try { localStorage.setItem('knight-name', name); } catch (e) {}
+      bags = {};
 
-      bags['+'] = []; bags['-'] = [];
-      const questions = [];
-      for (let i = 0; i < settings.count; i++) {
-        const op = settings.mode === 'mix' ? pick(['+', '-']) : (settings.mode === 'add' ? '+' : '-');
-        const tpl = drawTemplate(op);
-        const nums = makeNumbers(op);
-        questions.push({ op, tpl, ...nums, tries: 0, hinted: false });
-      }
-      state = { index: -1, stars: 0, coins: 0, perfect: 0, input: '', locked: true, questions, wrongs: [], marks: {} };
-
-      $('trip-title').textContent = `${name}的冒險`;
-      $('coin-count').textContent = 0;
-      $('star-count').textContent = 0;
-      buildMap();
-      showScreen('game-screen');
-      walkToNext();
-    }
-
-    // ---------- 地圖 ----------
-    const stopPos = (i) => 6 + (i * 88) / (settings.count + 1); // i: 0 = 村莊, count + 1 = 城堡
-
-    function buildMap() {
       const n = settings.count;
-      let html = `<div class="stop start" style="left:${stopPos(0)}%">🏡</div>`;
-      for (let i = 1; i <= n; i++) html += `<div class="stop" data-stop="${i}" style="left:${stopPos(i)}%">❔</div>`;
-      html += `<div class="stop end" style="left:${stopPos(n + 1)}%">🏰</div>`;
-      $('stops').innerHTML = html;
-      $('knight').style.transition = 'none';
-      $('knight').style.left = stopPos(0) + '%';
-      $('road-done').style.transition = 'none';
-      $('road-done').style.width = '0';
-      void $('knight').offsetWidth;
-      $('knight').style.transition = '';
-      $('road-done').style.transition = '';
+      let kinds = [];
+      const beastCount = Math.floor((n - 1) / 2);
+      for (let i = 0; i < n - 1; i++) kinds.push(i < beastCount ? 'beast' : 'npc');
+      kinds = shuffle(kinds);
+      if (kinds[0] === 'beast') { const j = kinds.indexOf('npc'); if (j > 0) { kinds[0] = 'npc'; kinds[j] = 'beast'; } }
+      kinds.push('boss');
+
+      const beastBag = shuffle(BEASTS);
+      const ents = [];
+      let x = 560;
+      kinds.forEach((k, i) => {
+        if (k === 'npc') {
+          const q = makeQuestion('npc');
+          ents.push({ type: 'npc', x, q, icon: q.tpl.icon, done: false });
+        } else {
+          const beast = k === 'boss' ? BOSS : (beastBag.pop() || pick(BEASTS));
+          ents.push({ type: 'beast', x, beast, icon: beast.icon, hp: beast.hp, done: false });
+        }
+        if (i < kinds.length - 1 && i % 2 === 0) ents.push({ type: 'chest', x: x + SPACING / 2, coins: rand(2, 4), done: false });
+        x += SPACING;
+      });
+      const castleX = x + 40;
+
+      if (state) cancelAnimationFrame(state.raf);
+      state = {
+        x: 130, dir: 1, moving: 0, last: 0, raf: 0, cam: 0, stepTimer: 0,
+        hearts: MAX_HEARTS, coins: 0, stars: 0, perfect: 0, asked: 0, faints: 0,
+        npcsDone: 0, beastsDone: 0,
+        ents, castleX, worldW: castleX + 260,
+        active: null, q: null, input: '', locked: true, marks: {}, wrongs: [], finished: false,
+      };
+
+      $('knight-tag').textContent = name;
+      $('encounter').hidden = true;
+      $('controls').hidden = false;
+      $('stage').classList.remove('compact');
+      showScreen('game-screen');
+      renderWorld();
+      updateHud();
+      state.raf = requestAnimationFrame(loop);
     }
 
-    function moveKnight(toStop, then) {
+    function renderWorld() {
+      $('world').style.width = state.worldW + 'px';
+
+      let deco = '';
+      for (let x = 40; x < state.worldW; x += rand(90, 170)) {
+        const near = state.ents.some(e => Math.abs(e.x - x) < 70) || Math.abs(state.castleX - x) < 90 || x < 110;
+        if (near) continue;
+        deco += Math.random() < .55
+          ? `<span class="deco" style="left:${x}px">${pick(DECOS)}</span>`
+          : `<span class="deco small" style="left:${x}px">${pick(SMALL_DECOS)}</span>`;
+      }
+      deco += `<span class="deco" style="left:60px;font-size:2.4rem">🏡</span>`;
+      $('decos').innerHTML = deco;
+
+      const box = $('ents');
+      box.innerHTML = '';
+      state.ents.forEach(e => {
+        const el = document.createElement('div');
+        el.className = 'ent ' + e.type + (e.beast && e.beast.boss ? ' boss' : '');
+        el.style.left = e.x + 'px';
+        if (e.type === 'npc') el.innerHTML = `<span class="bubble">❗</span><span class="body">${e.icon}</span>`;
+        else if (e.type === 'beast') el.innerHTML = `<span class="bubble">${e.beast.name}</span><span class="body">${e.icon}</span>`;
+        else el.innerHTML = `<span class="body">🎁</span>`;
+        box.appendChild(el);
+        e.el = el;
+      });
+      const castle = document.createElement('div');
+      castle.className = 'ent castle';
+      castle.style.left = state.castleX + 'px';
+      castle.innerHTML = '<span class="body">🏰</span>';
+      box.appendChild(castle);
+      render();
+    }
+
+    // ---------- 遊戲迴圈 ----------
+    function loop(t) {
+      if (!state || state.finished) return;
+      const dt = state.last ? Math.min(0.05, (t - state.last) / 1000) : 0;
+      state.last = t;
+
+      if (!state.active && state.moving) {
+        let nx = state.x + state.moving * SPEED * dt;
+        nx = Math.max(40, Math.min(state.worldW - 60, nx));
+
+        // 前方第一個還沒解決的村民或野獸會擋住路
+        const block = state.ents.find(e => !e.done && e.type !== 'chest' && e.x > state.x);
+        if (block && nx >= block.x - GAP) {
+          state.x = block.x - GAP;
+          render();
+          startEncounter(block);
+        } else {
+          state.x = nx;
+        }
+
+        state.ents.forEach(c => {
+          if (c.type === 'chest' && !c.done && Math.abs(state.x - c.x) < 28) openChest(c);
+        });
+
+        state.stepTimer -= dt;
+        if (state.stepTimer <= 0 && !state.active) { sound('step'); state.stepTimer = 0.32; }
+
+        if (state.x >= state.castleX - 50) { render(); arriveCastle(); return; }
+      }
       const k = $('knight');
-      k.classList.add('walking');
-      k.style.left = stopPos(toStop) + '%';
-      $('road-done').style.width = (stopPos(toStop) - 4) + '%';
-      sound('trot');
-      setTimeout(() => { k.classList.remove('walking'); then(); }, 1250);
+      k.classList.toggle('walking', !!state.moving && !state.active);
+      k.classList.toggle('left', state.dir < 0);
+      render();
+      state.raf = requestAnimationFrame(loop);
     }
 
-    function walkToNext() {
-      state.index++;
-      state.locked = true;
-      $('quest').hidden = true;
-      $('walking-note').hidden = false;
-      $('walking-note').textContent = state.index < settings.count
-        ? `🏇 ${settings.name}正在趕路…`
-        : `🏇 ${settings.name}看到水晶城堡了！`;
-      $('feedback').textContent = '';
-      $('keypad').hidden = false;
-      $('next-btn').hidden = true;
-      if (state.index >= settings.count) { moveKnight(settings.count + 1, showResult); return; }
-      moveKnight(state.index + 1, showQuest);
+    function render() {
+      const vw = $('stage').clientWidth || 360;
+      const cam = Math.max(0, Math.min(state.worldW - vw, state.x - vw * 0.4));
+      state.cam = cam;
+      $('world').style.transform = `translateX(${-cam}px)`;
+      $('hills').style.backgroundPositionX = `${-cam * 0.45}px`;
+      $('clouds').style.backgroundPositionX = `${-cam * 0.15}px`;
+      $('knight').style.left = state.x + 'px';
     }
 
-    // ---------- 任務 ----------
-    function showQuest() {
-      const q = currentQ();
-      const stop = document.querySelector(`[data-stop="${state.index + 1}"]`);
-      stop.textContent = q.tpl.icon;
-      stop.classList.add('current');
+    function setMoving(dir) {
+      if (!state || state.active || state.finished) return;
+      state.moving = dir;
+      if (dir) state.dir = dir;
+    }
 
+    function updateHud() {
+      $('heart-pill').textContent = '❤️'.repeat(state.hearts) + '🤍'.repeat(MAX_HEARTS - state.hearts);
+      $('coin-count').textContent = state.coins;
+      $('star-count').textContent = state.stars;
+      const total = state.ents.filter(e => e.type !== 'chest').length;
+      const done = state.npcsDone + state.beastsDone;
+      $('progress-left').textContent = `已過 ${done} 關`;
+      $('progress-right').textContent = done >= total ? '🏰 城堡就在前面！' : `🏰 還有 ${total - done} 關`;
+      const next = state.ents.find(e => !e.done && e.type !== 'chest');
+      $('guide').innerHTML = !next
+        ? '<b>道路暢通了！</b>往右走進城堡吧！'
+        : next.type === 'beast'
+          ? `<b>小心！前面有${next.beast.name}</b>按住 ▶ 往右走去挑戰`
+          : '<b>按住箭頭走路</b>前面有人需要幫忙！';
+    }
+
+    function floatText(x, text, color, bottom = 120) {
+      const el = document.createElement('div');
+      el.className = 'float';
+      el.style.left = x + 'px';
+      el.style.bottom = bottom + 'px';
+      el.style.color = color;
+      el.textContent = text;
+      $('world').appendChild(el);
+      setTimeout(() => el.remove(), 1200);
+    }
+
+    function openChest(c) {
+      c.done = true;
+      c.el.innerHTML = '<span class="body">✨</span>';
+      c.el.classList.add('opened');
+      state.coins += c.coins;
+      updateHud();
+      bump('coin-pill');
+      floatText(c.x, `+${c.coins} 🪙`, '#c58a00', 100);
+      sound('coin');
+    }
+
+    // ---------- 遇到村民 / 野獸 ----------
+    function startEncounter(ent) {
+      state.active = ent;
+      state.moving = 0;
+      heldKeys.clear();
+      document.querySelectorAll('.move').forEach(b => b.classList.remove('held'));
+      $('knight').classList.remove('walking');
+      $('controls').hidden = true;
+      $('encounter').hidden = false;
+      $('stage').classList.add('compact');
+
+      const enc = $('enc');
+      if (ent.type === 'npc') {
+        enc.classList.remove('battle');
+        $('portrait').textContent = ent.icon;
+        $('enc-kind').textContent = '村民的請求';
+        $('enc-title').textContent = ent.q.tpl.title;
+        $('hpbar').hidden = true;
+        state.q = ent.q;
+        sound('ding');
+      } else {
+        enc.classList.add('battle');
+        $('portrait').textContent = ent.icon;
+        $('enc-kind').textContent = ent.beast.boss ? '魔王戰！' : '野獸出現了！';
+        $('enc-title').textContent = `${ent.beast.name}擋住了去路`;
+        $('hpbar').hidden = false;
+        renderHp(ent);
+        state.q = makeQuestion('battle', ent.beast.name);
+        sound('roar');
+      }
+      presentQuestion();
+    }
+
+    function renderHp(ent) {
+      let html = '生命 ';
+      for (let i = 0; i < ent.beast.hp; i++) html += `<i class="${i < ent.hp ? '' : 'empty'}"></i>`;
+      $('hpbar').innerHTML = html;
+    }
+
+    function presentQuestion() {
+      const q = state.q;
       state.input = '';
       state.marks = {};
       state.locked = false;
-      $('walking-note').hidden = true;
-      $('quest').hidden = false;
-      $('npc').textContent = q.tpl.icon;
-      $('quest-no').textContent = `任務 ${state.index + 1} / ${settings.count}`;
-      $('quest-title').textContent = q.tpl.title;
-      $('story').innerHTML = q.tpl.text(q.a, q.b, settings.name);
-      $('unit').textContent = q.tpl.unit;
+      state.asked++;
+      $('story').innerHTML = q.html;
+      $('unit').textContent = q.unit;
       $('hint').hidden = true;
       $('hint-btn').hidden = false;
       $('feedback').textContent = '';
       $('feedback').className = 'feedback';
+      $('keypad').hidden = false;
+      $('next-btn').hidden = true;
       showAnswer('');
-      sound('ding');
     }
 
-    const currentQ = () => state.questions[state.index];
-    const opSign = (op) => (op === '+' ? '+' : '−');
+    // ---------- 提示 ----------
     const verticalInput = () => settings.layout === 'v' && !$('hint').hidden;
 
     function showHint() {
-      const q = currentQ();
+      const q = state.q;
       if (!q || !$('hint').hidden) return;
       q.hinted = true;
       $('hint').hidden = false;
@@ -660,18 +931,16 @@
       if (verticalInput()) renderVertical(status);
     }
 
-    const digitsOf = (n) => String(n).split('').reverse().map(Number); // 個位數在前
+    const digitsOf = (n) => String(n).split('').reverse().map(Number);
     const colsOf = (q) => Math.max(String(q.a).length, String(q.b).length, String(q.answer).length);
 
     function renderVertical(status) {
-      const q = currentQ();
+      const q = state.q;
       const cols = colsOf(q);
       const A = digitsOf(q.a), B = digitsOf(q.b);
       const box = $('vertical');
       box.style.gridTemplateColumns = `repeat(${cols + 1}, var(--cell))`;
       let html = '<div class="cell helper"></div>';
-
-      // 進位 / 借位記號列
       for (let i = cols - 1; i >= 0; i--) {
         if (q.op === '+') {
           html += i >= 1
@@ -682,7 +951,6 @@
           html += `<div class="cell helper">${borrowed ? (A[i] === 0 ? 9 : A[i] - 1) : ''}</div>`;
         }
       }
-
       html += '<div class="cell"></div>';
       for (let i = cols - 1; i >= 0; i--) {
         const d = A[i];
@@ -692,11 +960,9 @@
           ? `<div class="cell">${badge}<button class="digit-btn ${state.marks[i] ? 'struck' : ''}" data-borrow="${i}" aria-label="借位">${d}</button></div>`
           : `<div class="cell">${badge}${d}</div>`;
       }
-
       html += `<div class="cell op-cell">${opSign(q.op)}</div>`;
       for (let i = cols - 1; i >= 0; i--) html += `<div class="cell">${B[i] !== undefined ? B[i] : ''}</div>`;
       html += '<div class="line"></div><div class="cell"></div>';
-
       const inp = state.input;
       for (let i = cols - 1; i >= 0; i--) {
         const ch = inp.length > i ? inp[inp.length - 1 - i] : '';
@@ -720,7 +986,7 @@
 
     // ---------- 輸入 ----------
     function press(key) {
-      if (!state || state.locked) return;
+      if (!state || !state.active || state.locked) return;
       if (key === 'del') {
         state.input = verticalInput() ? state.input.slice(1) : state.input.slice(0, -1);
         sound('tap');
@@ -728,7 +994,7 @@
         if (state.input !== '') checkAnswer();
         return;
       } else if (verticalInput()) {
-        if (state.input.length >= colsOf(currentQ())) return;
+        if (state.input.length >= colsOf(state.q)) return;
         state.input = key + state.input; // 直式從個位數往左填
         sound('tap');
       } else {
@@ -740,59 +1006,153 @@
     }
 
     function checkAnswer() {
-      const q = currentQ();
+      const q = state.q;
+      const ent = state.active;
       const value = Number(state.input);
       const fb = $('feedback');
       q.tries++;
 
       if (value === q.answer) {
         const perfect = q.tries === 1 && !q.hinted;
-        const coins = perfect ? 3 : 2;
         if (perfect) { state.stars++; state.perfect++; bump('star-pill'); }
-        state.coins += coins;
-        bump('coin-pill');
-        $('star-count').textContent = state.stars;
-        $('coin-count').textContent = state.coins;
+        state.locked = true;
+        showAnswer('correct');
         fb.className = 'feedback good';
-        fb.innerHTML = `${pick(PRAISE)} ${q.tpl.win}<br>獲得 🪙 ${coins} 枚${perfect ? '、⭐ 1 顆' : ''}`;
-        sound('good');
-        finishQuest('correct');
-      } else {
-        if (q.tries === 1) state.wrongs.push({ ...q, yours: value });
-        fb.className = 'feedback bad';
-        sound('bad');
-        if (q.tries >= 2) {
-          // 第二次答錯就說出答案，任務還是完成
-          state.coins += 1;
-          $('coin-count').textContent = state.coins;
-          fb.innerHTML = `正確答案是 ${q.answer} ${q.tpl.unit}（${q.a} ${opSign(q.op)} ${q.b} = ${q.answer}）。<br>${q.tpl.win} 獲得 🪙 1 枚`;
-          showHint();
-          state.input = String(value);
-          showAnswer('wrong');
-          setTimeout(() => { state.input = String(q.answer); showAnswer('correct'); }, 450);
-          finishQuest(null);
+        if (ent.type === 'npc') {
+          const coins = perfect ? 3 : 2;
+          addCoins(coins, ent.x);
+          fb.innerHTML = `${pick(PRAISE)}${q.tpl.win}<br>獲得 🪙 ${coins} 枚${perfect ? '、⭐ 1 顆' : ''}`;
+          sound('good');
+          resolveEncounter();
         } else {
-          fb.textContent = pick(RETRY);
-          showHint();
-          state.input = String(value);
-          showAnswer('wrong');
-          state.input = '';
-          setTimeout(() => { if (state && !state.locked) showAnswer(''); }, 700);
+          knightAttack(ent, `${pick(PRAISE)}${settings.name}揮劍攻擊，${ent.beast.name}受到 1 點傷害！${perfect ? '（⭐ +1）' : ''}`);
         }
+        return;
+      }
+
+      // 答錯
+      if (q.tries === 1) state.wrongs.push({ ...q, yours: value, icon: ent.icon });
+      fb.className = 'feedback bad';
+      showHint();
+      state.input = String(value);
+      showAnswer('wrong');
+      sound('bad');
+      const hurtMsg = ent.type === 'beast' ? beastAttack(ent) : '';
+
+      if (q.tries >= 2) {
+        state.locked = true;
+        setTimeout(() => { if (state) { state.input = String(q.answer); showAnswer('correct'); } }, 450);
+        const reveal = `正確答案是 ${q.answer} ${q.unit}（${q.a} ${opSign(q.op)} ${q.b} = ${q.answer}）。`;
+        if (ent.type === 'npc') {
+          addCoins(1, ent.x);
+          fb.innerHTML = `${reveal}<br>${q.tpl.win} 獲得 🪙 1 枚`;
+          resolveEncounter();
+        } else {
+          fb.innerHTML = `${hurtMsg}${reveal}`;
+          $('keypad').hidden = true;
+          // 記住答案後鼓起勇氣再攻擊一次，戰鬥一定會往前進
+          setTimeout(() => { if (state && state.active === ent) knightAttack(ent, `${reveal}<br>${settings.name}記住答案，鼓起勇氣揮出一劍！`); }, 1300);
+        }
+      } else {
+        fb.innerHTML = hurtMsg + pick(RETRY);
+        state.input = '';
+        setTimeout(() => { if (state && state.active && !state.locked) showAnswer(''); }, 700);
       }
     }
 
-    function finishQuest(status) {
-      state.locked = true;
-      if (status) showAnswer(status);
-      $('hint-btn').hidden = true;
-      const stop = document.querySelector(`[data-stop="${state.index + 1}"]`);
-      stop.classList.remove('current');
-      stop.classList.add('done');
+    function knightAttack(ent, text) {
+      const fb = $('feedback');
+      fb.className = 'feedback good';
+      $('keypad').hidden = true;
+      const k = $('knight');
+      k.classList.remove('attack'); void k.offsetWidth; k.classList.add('attack');
+      sound('slash');
+      setTimeout(() => {
+        if (!state || state.active !== ent) return;
+        ent.hp = Math.max(0, ent.hp - 1);
+        renderHp(ent);
+        ent.el.classList.remove('hit'); void ent.el.offsetWidth; ent.el.classList.add('hit');
+        floatText(ent.x, '-1', '#e0485a', ent.beast.boss ? 150 : 120);
+        if (ent.hp <= 0) {
+          addCoins(ent.beast.reward, ent.x);
+          fb.innerHTML = `${text}<br>🎉 打倒${ent.beast.name}了！獲得 🪙 ${ent.beast.reward} 枚`;
+          sound('win');
+          resolveEncounter();
+        } else {
+          fb.innerHTML = `${text}<br>${ent.beast.name}還有 ${ent.hp} 點生命！`;
+          showNext('fight', '下一回合 ⚔️');
+        }
+      }, 220);
+    }
+
+    function beastAttack(ent) {
+      const b = ent.el;
+      b.classList.remove('lunge'); void b.offsetWidth; b.classList.add('lunge');
+      setTimeout(() => {
+        const k = $('knight');
+        k.classList.remove('hurt'); void k.offsetWidth; k.classList.add('hurt');
+      }, 180);
+      state.hearts = Math.max(0, state.hearts - 1);
+      floatText(state.x, '-❤️', '#e0485a', 110);
+      let msg = `${ent.beast.name}反擊了！失去 1 顆愛心。`;
+      if (state.hearts === 0) {
+        const lost = Math.min(3, state.coins);
+        state.coins -= lost;
+        state.hearts = MAX_HEARTS;
+        state.faints++;
+        msg += `<br>🧚 森林仙子幫你恢復了全部體力！${lost ? `（掉了 ${lost} 枚金幣）` : ''}`;
+      }
+      updateHud();
+      bump('heart-pill');
+      return msg + '<br>';
+    }
+
+    function addCoins(n, x) {
+      state.coins += n;
+      updateHud();
+      bump('coin-pill');
+      floatText(x, `+${n} 🪙`, '#c58a00', 150);
+    }
+
+    function showNext(style, text) {
       $('keypad').hidden = true;
       $('next-btn').hidden = false;
-      $('next-btn').textContent = state.index + 1 >= settings.count ? '前往水晶城堡 🏰' : '繼續前進 ▶';
+      $('next-btn').className = 'btn ' + style;
+      $('next-btn').textContent = text;
       $('next-btn').focus({ preventScroll: true });
+    }
+
+    function resolveEncounter() {
+      const ent = state.active;
+      ent.done = true;
+      state.locked = true;
+      if (ent.type === 'npc') {
+        state.npcsDone++;
+        ent.el.querySelector('.bubble').textContent = '✅';
+      } else {
+        state.beastsDone++;
+        setTimeout(() => ent.el.classList.add('defeated'), 500);
+      }
+      updateHud();
+      $('hint-btn').hidden = true;
+      showNext('go', '繼續冒險 ▶');
+    }
+
+    function onNext() {
+      if (!state || !state.active || $('next-btn').hidden) return;
+      sound('tap');
+      const ent = state.active;
+      if (ent.done) {
+        state.active = null;
+        state.q = null;
+        $('encounter').hidden = true;
+        $('controls').hidden = false;
+        $('stage').classList.remove('compact');
+        try { speechSynthesis.cancel(); } catch (e) {}
+      } else {
+        state.q = makeQuestion('battle', ent.beast.name);
+        presentQuestion();
+      }
     }
 
     function bump(id) {
@@ -800,20 +1160,31 @@
       el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
     }
 
-    // ---------- 結果 ----------
+    // ---------- 抵達城堡 ----------
+    function arriveCastle() {
+      state.finished = true;
+      state.moving = 0;
+      $('knight').classList.remove('walking');
+      sound('win');
+      setTimeout(showResult, 600);
+    }
+
     function showResult() {
-      const total = settings.count;
-      const ratio = state.perfect / total;
+      if (!state) return;
+      const ratio = state.asked ? state.perfect / state.asked : 0;
       let title, stars;
-      if (ratio === 1)      { title = `${settings.name}完美完成所有任務！`; stars = 3; }
+      if (ratio === 1)      { title = `${settings.name}完美完成冒險！`; stars = 3; }
       else if (ratio >= .7) { title = `${settings.name}抵達水晶城堡了！`; stars = 3; }
       else if (ratio >= .4) { title = `${settings.name}平安抵達城堡！`; stars = 2; }
       else                  { title = '抵達城堡了！多冒險幾次會更厲害喔！'; stars = 1; }
 
       $('result-title').textContent = title;
       $('result-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-      $('result-detail').innerHTML =
-        `完成任務：<b>${total}</b> 個<br>自己一次就算對：<b>${state.perfect}</b> 個<br>收集金幣：<b>🪙 ${state.coins}</b> 枚`;
+      $('result-detail').innerHTML = `
+        <div class="stat"><div class="num">${state.npcsDone}</div><div class="lbl">幫助的村民</div></div>
+        <div class="stat"><div class="num">${state.beastsDone}</div><div class="lbl">打倒的野獸</div></div>
+        <div class="stat"><div class="num">${state.perfect} / ${state.asked}</div><div class="lbl">一次就算對的題目</div></div>
+        <div class="stat"><div class="num">🪙 ${state.coins}</div><div class="lbl">收集的金幣</div></div>`;
 
       const review = $('review');
       review.innerHTML = '';
@@ -821,19 +1192,18 @@
       state.wrongs.forEach(w => {
         const div = document.createElement('div');
         div.className = 'review-item';
-        div.innerHTML = `${w.tpl.icon} ${w.tpl.text(w.a, w.b, settings.name).replace(/<[^>]+>/g, '')}<br>
-          <span class="eq">${w.a} ${opSign(w.op)} ${w.b} = ${w.answer} ${w.tpl.unit}</span>　<span class="yours">你寫 ${w.yours}</span>`;
+        div.innerHTML = `${w.icon} ${stripTags(w.html)}<br>
+          <span class="eq">${w.a} ${opSign(w.op)} ${w.b} = ${w.answer} ${w.unit}</span>　<span class="yours">你寫 ${w.yours}</span>`;
         review.appendChild(div);
       });
 
       saveBest();
       showScreen('result-screen');
-      sound('win');
       if (ratio >= .7) confetti();
     }
 
     // ---------- 最佳紀錄 ----------
-    const bestKey = () => `knight-best-${settings.mode}-${settings.level}-${settings.count}`;
+    const bestKey = () => `knight-rpg-best-${settings.mode}-${settings.level}-${settings.count}`;
     function saveBest() {
       try {
         const prev = Number(localStorage.getItem(bestKey()) || 0);
@@ -846,21 +1216,25 @@
       $('best-text').textContent = best ? `🏅 這條路線的最多金幣：🪙 ${best} 枚` : '';
     }
 
-    // ---------- 畫面切換 ----------
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       $(id).classList.add('active');
       window.scrollTo(0, 0);
     }
 
+    function stopGame() {
+      if (state) { cancelAnimationFrame(state.raf); state.finished = true; }
+      state = null;
+      heldKeys.clear();
+      try { speechSynthesis.cancel(); } catch (e) {}
+    }
+
     // ---------- 唸題目 ----------
     function speak() {
       try {
-        const q = currentQ();
-        if (!q || !('speechSynthesis' in window)) return;
+        if (!state || !state.q || !('speechSynthesis' in window)) return;
         speechSynthesis.cancel();
-        const text = q.tpl.text(q.a, q.b, settings.name).replace(/<[^>]+>/g, '');
-        const u = new SpeechSynthesisUtterance(text);
+        const u = new SpeechSynthesisUtterance(stripTags(state.q.html));
         u.lang = 'zh-TW';
         u.rate = 0.9;
         speechSynthesis.speak(u);
@@ -872,27 +1246,29 @@
     function sound(type) {
       try {
         audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-        const notes = {
-          tap:  [[600, 0.05]],
-          ding: [[880, 0.12], [1175, 0.2]],
-          trot: [[300, 0.06], [0, 0.12], [260, 0.06], [0, 0.12], [300, 0.06], [0, 0.12], [260, 0.06]],
-          good: [[523, 0.1], [659, 0.1], [784, 0.18]],
-          bad:  [[220, 0.25]],
-          win:  [[523, 0.12], [659, 0.12], [784, 0.12], [1047, 0.35]],
-        }[type];
+        const presets = {
+          tap:   { wave: 'sine', notes: [[600, 0.05]] },
+          step:  { wave: 'triangle', vol: 0.06, notes: [[180, 0.05]] },
+          ding:  { wave: 'sine', notes: [[880, 0.12], [1175, 0.2]] },
+          coin:  { wave: 'square', vol: 0.06, notes: [[988, 0.07], [1319, 0.18]] },
+          roar:  { wave: 'sawtooth', vol: 0.08, notes: [[140, 0.18], [110, 0.3]] },
+          slash: { wave: 'sawtooth', vol: 0.07, notes: [[900, 0.04], [500, 0.08]] },
+          good:  { wave: 'sine', notes: [[523, 0.1], [659, 0.1], [784, 0.18]] },
+          bad:   { wave: 'triangle', notes: [[220, 0.25]] },
+          win:   { wave: 'sine', notes: [[523, 0.12], [659, 0.12], [784, 0.12], [1047, 0.35]] },
+        };
+        const p = presets[type];
         let t = audioCtx.currentTime;
-        notes.forEach(([freq, dur]) => {
-          if (freq) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type === 'bad' || type === 'trot' ? 'triangle' : 'sine';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0.14, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-            osc.connect(gain).connect(audioCtx.destination);
-            osc.start(t);
-            osc.stop(t + dur);
-          }
+        p.notes.forEach(([freq, dur]) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = p.wave;
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(p.vol || 0.14, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+          osc.connect(gain).connect(audioCtx.destination);
+          osc.start(t);
+          osc.stop(t + dur);
           t += dur * 0.9;
         });
       } catch (e) {}
@@ -915,31 +1291,58 @@
     }
 
     // ---------- 事件 ----------
+    // 按住左右按鈕走路（觸控、滑鼠都可以）
+    [['left-btn', -1], ['right-btn', 1]].forEach(([id, dir]) => {
+      const b = $(id);
+      const start = (e) => { e.preventDefault(); b.classList.add('held'); try { b.setPointerCapture(e.pointerId); } catch (_) {} setMoving(dir); };
+      const end = () => { b.classList.remove('held'); if (state && state.moving === dir) state.moving = 0; };
+      b.addEventListener('pointerdown', start);
+      b.addEventListener('pointerup', end);
+      b.addEventListener('pointercancel', end);
+      b.addEventListener('lostpointercapture', end);
+      b.addEventListener('contextmenu', (e) => e.preventDefault());
+    });
+
+    // 鍵盤：← → 或 A D 走路
+    const heldKeys = new Set();
+    const keyDir = (k) => (k === 'ArrowLeft' || k === 'a' || k === 'A') ? 'L' : (k === 'ArrowRight' || k === 'd' || k === 'D') ? 'R' : null;
+    document.addEventListener('keydown', (e) => {
+      if (!state || !$('game-screen').classList.contains('active') || !$('quit-modal').hidden) return;
+      const k = e.key;
+      if (!state.active) {
+        const d = keyDir(k);
+        if (d) { e.preventDefault(); heldKeys.add(d); setMoving(d === 'R' ? 1 : -1); }
+        return;
+      }
+      if (/^[0-9]$/.test(k)) press(k);
+      else if (k === 'Backspace') { e.preventDefault(); press('del'); }
+      else if (k === 'Enter') {
+        e.preventDefault();
+        if (!$('next-btn').hidden) onNext(); else press('ok');
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      const d = keyDir(e.key);
+      if (!d || !state) return;
+      heldKeys.delete(d);
+      if (!state.active) setMoving(heldKeys.has('R') ? 1 : heldKeys.has('L') ? -1 : 0);
+    });
+    window.addEventListener('blur', () => { heldKeys.clear(); if (state) state.moving = 0; });
+
     $('keypad').addEventListener('click', (e) => {
       const k = e.target.closest('.key');
       if (k) press(k.dataset.key);
     });
-    document.addEventListener('keydown', (e) => {
-      if (!$('game-screen').classList.contains('active') || !$('quit-modal').hidden) return;
-      if (/^[0-9]$/.test(e.key)) press(e.key);
-      else if (e.key === 'Backspace') press('del');
-      else if (e.key === 'Enter') {
-        if (!$('next-btn').hidden) { e.preventDefault(); $('next-btn').click(); }
-        else press('ok');
-      }
-    });
     $('hint-btn').addEventListener('click', () => { sound('tap'); showHint(); });
     $('speak-btn').addEventListener('click', speak);
-    $('next-btn').addEventListener('click', () => { if (state && !$('next-btn').hidden) { sound('tap'); walkToNext(); } });
+    $('next-btn').addEventListener('click', onNext);
     $('start-btn').addEventListener('click', () => { sound('tap'); startGame(); });
     $('again-btn').addEventListener('click', () => { sound('tap'); startGame(); });
-    $('home-btn').addEventListener('click', () => { sound('tap'); showBest(); showScreen('start-screen'); });
-    $('quit-btn').addEventListener('click', () => { sound('tap'); $('quit-modal').hidden = false; });
+    $('home-btn').addEventListener('click', () => { sound('tap'); stopGame(); showBest(); showScreen('start-screen'); });
+    $('quit-btn').addEventListener('click', () => { sound('tap'); if (state) state.moving = 0; $('quit-modal').hidden = false; });
     $('quit-no').addEventListener('click', () => { sound('tap'); $('quit-modal').hidden = true; });
     $('quit-yes').addEventListener('click', () => {
-      sound('tap'); $('quit-modal').hidden = true; state = null;
-      try { speechSynthesis.cancel(); } catch (e) {}
-      showBest(); showScreen('start-screen');
+      sound('tap'); $('quit-modal').hidden = true; stopGame(); showBest(); showScreen('start-screen');
     });
 
     showBest();
