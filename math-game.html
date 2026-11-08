@@ -1020,7 +1020,7 @@
         npcTotal: ents.filter(e => e.type === 'npc').length,
         beastTotal: ents.filter(e => e.type === 'beast').length,
         active: null, q: null, input: '', locked: true, marks: {}, wrongs: [],
-        effects: [], finished: false, raf: 0, last: now, miniT: 0, gateOpen: false,
+        effects: [], fx: [], shake: null, flash: null, finished: false, raf: 0, last: now, miniT: 0, gateOpen: false,
       };
       heldDirs.length = 0;
 
@@ -1274,10 +1274,18 @@
       const px = DPR * zoom;
       const cx = Math.round(state.cam.x * px) / px, cy = Math.round(state.cam.y * px) / px;
 
+      // 打中時畫面震一下
+      let sx = 0, sy = 0;
+      if (state.shake) {
+        const k = (now - state.shake.t0) / state.shake.dur;
+        if (k >= 1) state.shake = null;
+        else { const m = state.shake.mag * (1 - k); sx = (Math.random() - .5) * 2 * m; sy = (Math.random() - .5) * 2 * m; }
+      }
+
       g.fillStyle = '#5fa83a';
       g.fillRect(0, 0, vw, vh);
       g.save();
-      g.translate(-cx, -cy);
+      g.translate(-cx + sx, -cy + sy);
       g.drawImage(staticLayer, 0, 0, mapW, mapH);
 
       // 城門
@@ -1296,6 +1304,8 @@
         else drawEnt(g, it.e, it.pos, now);
       });
 
+      drawFx(g, now);
+
       // 飄起來的文字
       state.effects = state.effects.filter(f => now - f.t0 < 1100);
       state.effects.forEach(f => {
@@ -1311,6 +1321,120 @@
         g.globalAlpha = 1;
       });
       g.restore();
+
+      // 被打到時，畫面四周閃一下紅光
+      if (state.flash) {
+        const k = (now - state.flash.t0) / 450;
+        if (k >= 1 || k < 0) { if (k >= 1) state.flash = null; }
+        else {
+          const grad = g.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * .3, vw / 2, vh / 2, Math.max(vw, vh) * .75);
+          grad.addColorStop(0, 'rgba(224,72,90,0)');
+          grad.addColorStop(1, `rgba(224,72,90,${.55 * (1 - k)})`);
+          g.fillStyle = grad;
+          g.fillRect(0, 0, vw, vh);
+        }
+      }
+    }
+
+    // =====================================================================
+    // 打鬥特效
+    // =====================================================================
+    const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const center = (o) => ({ x: o.x * TS + TS / 2, y: o.y * TS + TS / 2 });
+    const easeOutBack = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
+
+    function addFx(fx, delay = 0) { state.fx.push({ ...fx, t0: performance.now() + delay }); }
+    function shakeScreen(mag, dur, delay = 0) {
+      if (REDUCED) return;
+      setTimeout(() => { if (state) state.shake = { mag, dur, t0: performance.now() }; }, delay);
+    }
+    function flashScreen(delay = 0) {
+      setTimeout(() => { if (state) state.flash = { t0: performance.now() }; }, delay);
+    }
+    function burst(x, y, n, colors, opts = {}) {
+      if (REDUCED) n = Math.min(n, 3);
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = (opts.speed || .12) * (.5 + Math.random());
+        addFx({
+          kind: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - (opts.lift || .05),
+          grav: opts.grav ?? .0004, color: pick(colors), size: (opts.size || 3) * (.6 + Math.random() * .8),
+          emoji: opts.emoji ? pick(opts.emoji) : null, life: (opts.life || 600) * (.7 + Math.random() * .5),
+        }, opts.delay || 0);
+      }
+    }
+
+    function drawFx(g, now) {
+      state.fx = state.fx.filter(f => now - f.t0 < (f.life || f.dur || 600));
+      for (const f of state.fx) {
+        const t = now - f.t0;
+        if (t < 0) continue;
+        const life = f.life || f.dur || 600;
+        const k = t / life;
+        g.save();
+        switch (f.kind) {
+          case 'spark': {
+            const x = f.x + f.vx * t, y = f.y + f.vy * t + .5 * f.grav * t * t;
+            g.globalAlpha = 1 - k;
+            if (f.emoji) emoji(g, f.emoji, x, y, 16 * (1 - k * .4));
+            else { g.fillStyle = f.color; g.beginPath(); g.arc(x, y, f.size * (1 - k * .5), 0, Math.PI * 2); g.fill(); }
+            break;
+          }
+          case 'slash': { // 劍光：一道彎彎的白金色弧線
+            const sweep = Math.min(1, t / 140);
+            const base = Math.atan2(f.dy, f.dx);
+            const a0 = base - 1.6, a1 = a0 + 3.0 * sweep;
+            g.globalAlpha = k < .5 ? 1 : 1 - (k - .5) * 2;
+            g.lineCap = 'round';
+            g.strokeStyle = 'rgba(255,214,90,.9)'; g.lineWidth = 11;
+            g.beginPath(); g.arc(f.x, f.y, 24, a0, a1); g.stroke();
+            g.strokeStyle = '#fff'; g.lineWidth = 5;
+            g.beginPath(); g.arc(f.x, f.y, 24, a0 + .2, a1); g.stroke();
+            break;
+          }
+          case 'ring': {
+            g.globalAlpha = 1 - k;
+            g.strokeStyle = f.color; g.lineWidth = 5 * (1 - k) + 1;
+            g.beginPath(); g.arc(f.x, f.y, 8 + (f.r || 34) * k, 0, Math.PI * 2); g.stroke();
+            break;
+          }
+          case 'claw': { // 爪痕：三條紅色的斜線
+            const grow = Math.min(1, t / 110);
+            g.globalAlpha = k < .6 ? 1 : 1 - (k - .6) / .4;
+            g.strokeStyle = '#e0485a'; g.lineCap = 'round'; g.lineWidth = 4;
+            for (let i = -1; i <= 1; i++) {
+              const ox = f.x + i * 8 - 10, oy = f.y - 14;
+              g.beginPath(); g.moveTo(ox, oy); g.lineTo(ox + 20 * grow, oy + 26 * grow); g.stroke();
+            }
+            break;
+          }
+          case 'pop': { // 跳出來的圖示
+            const sc = t < 260 ? easeOutBack(t / 260) : 1;
+            g.globalAlpha = k < .7 ? 1 : 1 - (k - .7) / .3;
+            emoji(g, f.emoji, f.x, f.y - k * 6, (f.size || 26) * sc);
+            break;
+          }
+          case 'dmg': { // 大大的傷害數字
+            const sc = t < 220 ? easeOutBack(t / 220) : 1;
+            const y = f.y - 10 - k * 30;
+            g.globalAlpha = k < .6 ? 1 : 1 - (k - .6) / .4;
+            g.font = `900 ${Math.round(26 * sc)}px "Arial Black","PingFang TC","Microsoft JhengHei",sans-serif`;
+            g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeText(f.text, f.x, y);
+            g.fillStyle = f.color; g.fillText(f.text, f.x, y);
+            break;
+          }
+          case 'fly': { // 從 A 飛到 B（金幣、火球）
+            const e = 1 - Math.pow(1 - k, 2);
+            const x = f.x + (f.tx - f.x) * e + (f.wobble ? Math.sin(t / 30) * 4 : 0);
+            const y = f.y + (f.ty - f.y) * e - Math.sin(Math.PI * k) * (f.arc || 0);
+            g.globalAlpha = k < .85 ? 1 : 1 - (k - .85) / .15;
+            emoji(g, f.emoji, x, y, (f.size || 18) * (f.grow ? .7 + k * .6 : 1));
+            break;
+          }
+        }
+        g.restore();
+      }
     }
 
     function shadow(g, x, y, w) {
@@ -1335,25 +1459,42 @@
 
     function drawKnight(g, pos, now) {
       const p = state.p;
-      let ox = 0, oy = 0;
-      if (p.attackT && now - p.attackT < 320) {
-        const k = Math.sin(Math.PI * (now - p.attackT) / 320) * 16;
-        ox = (p.ax || 0) * k; oy = (p.ay || 0) * k;
+      let ox = 0, oy = 0, rot = 0;
+      // 攻擊：往後蓄力 → 衝上前揮劍 → 退回原位
+      if (p.attackT) {
+        const t = now - p.attackT;
+        if (t >= 0 && t < 650) {
+          let k;
+          if (t < 150) { k = -(t / 150) * 8; rot = -.3 * (t / 150); }
+          else if (t < 300) { const u = (t - 150) / 150; k = -8 + u * 38; rot = -.3 + u * .75; }
+          else { const u = (t - 300) / 350; k = 30 * (1 - u); rot = .45 * (1 - u); }
+          ox = (p.ax || 0) * k; oy = (p.ay || 0) * k;
+        }
       }
+      // 被打：往後彈開、抖一抖
       let shake = 0;
-      if (p.hurtT && now - p.hurtT < 450) shake = Math.sin((now - p.hurtT) / 25) * 4;
-      const bob = p.moving ? Math.abs(Math.sin(now / 70)) * -3 : 0;
+      const hurtAge = p.hurtT ? now - p.hurtT : -1;
+      if (hurtAge >= 0 && hurtAge < 450) {
+        shake = Math.sin(hurtAge / 25) * 4;
+        const back = 12 * (1 - hurtAge / 450);
+        ox += (p.kx || 0) * back; oy += (p.ky || 0) * back;
+        rot = -.25 * (1 - hurtAge / 450);
+      }
+      // 戰鬥中擺好架勢，輕輕上下晃
+      const fighting = state.active && state.active.type === 'beast';
+      const bob = p.moving ? Math.abs(Math.sin(now / 70)) * -3 : fighting ? Math.sin(now / 220) * 1.5 : 0;
       const x = pos.x * TS + TS / 2 + ox + shake;
       const y = pos.y * TS + TS / 2 + oy;
       shadow(g, x, y + 18, 13);
       const w = 38, h = 44;
       g.save();
       g.translate(x, y + bob);
+      g.rotate(rot * (p.face < 0 ? -1 : 1));
       if (p.face < 0) g.scale(-1, 1);
       if (knightImg.complete && knightImg.naturalWidth) g.drawImage(knightImg, -w / 2, -h / 2 - 2, w, h);
       else { g.fillStyle = '#3d8fd6'; g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.fill(); }
       g.restore();
-      if (p.hurtT && now - p.hurtT < 450) {
+      if (hurtAge >= 0 && hurtAge < 450) {
         g.fillStyle = 'rgba(224,72,90,.35)';
         g.beginPath(); g.arc(x, y, 22, 0, Math.PI * 2); g.fill();
       }
@@ -1374,17 +1515,36 @@
         g.globalAlpha = 1;
         return;
       }
+      let rot = 0;
+      const dx = Math.sign(state.p.x - e.x), dy = Math.sign(state.p.y - e.y);
+      // 被打倒：一邊轉圈一邊縮小消失
       if (e.type === 'beast' && e.done) {
         const k = Math.max(0, (now - e.doneT) / 700);
         if (k >= 1) { e.gone = true; return; }
-        alpha = 1 - k; scale = 1 - k * .6;
+        alpha = 1 - k; scale = 1 - k * .7; rot = k * Math.PI * 3; y -= k * 12;
       }
-      if (e.hitT && now - e.hitT < 400) x += Math.sin((now - e.hitT) / 30) * 5;
-      if (e.lungeT && now - e.lungeT < 360) {
-        const k = Math.sin(Math.PI * (now - e.lungeT) / 360) * 16;
-        x += Math.sign(state.p.x - e.x) * k;
-        y += Math.sign(state.p.y - e.y) * k;
+      // 出場時大吼一聲（放大一下）
+      if (e.introT && now - e.introT < 520 && now >= e.introT) scale *= 1 + .28 * Math.sin(Math.PI * (now - e.introT) / 520);
+      // 被砍中：往後彈、抖動
+      const hitAge = e.hitT ? now - e.hitT : -1;
+      if (hitAge >= 0 && hitAge < 400) {
+        x += Math.sin(hitAge / 30) * 5 - dx * 14 * (1 - hitAge / 400);
+        y -= dy * 14 * (1 - hitAge / 400);
+        rot += .3 * (1 - hitAge / 400) * (dx || 1);
       }
+      // 反擊：先縮起來蓄力 → 撲向騎士 → 退回去
+      if (e.lungeT) {
+        const t = now - e.lungeT;
+        if (t >= 0 && t < 600) {
+          let k;
+          if (t < 200) { k = -(t / 200) * 8; scale *= 1 - .12 * (t / 200); }
+          else if (t < 330) { const u = (t - 200) / 130; k = -8 + u * 40; scale *= .88 + u * .22; }
+          else { const u = (t - 330) / 270; k = 32 * (1 - u); scale *= 1.1 - .1 * u; }
+          x += dx * k; y += dy * k;
+        }
+      }
+      // 戰鬥中晃動
+      if (state.active === e && !e.done) y += Math.sin(now / 260 + 1) * 2;
       const boss = e.beast && e.beast.boss;
       const size = (boss ? TS * 1.45 : e.type === 'beast' ? TS * .95 : TS * .85) * scale;
       shadow(g, x, y + (boss ? 22 : 16), boss ? 22 : 13);
@@ -1397,9 +1557,13 @@
       g.arc(x, y + (boss ? -4 : 1), size * .52, 0, Math.PI * 2);
       g.fill();
       if (!e.done) g.stroke();
-      emoji(g, e.icon, x, y + (boss ? -6 : 0), size);
-      if (e.hitT && now - e.hitT < 250) {
-        g.fillStyle = 'rgba(255,255,255,.55)';
+      if (rot) {
+        g.save(); g.translate(x, y + (boss ? -6 : 0)); g.rotate(rot);
+        emoji(g, e.icon, 0, 0, size);
+        g.restore();
+      } else emoji(g, e.icon, x, y + (boss ? -6 : 0), size);
+      if (hitAge >= 0 && hitAge < 260) {
+        g.fillStyle = hitAge < 90 ? 'rgba(255,255,255,.7)' : 'rgba(224,72,90,.4)';
         g.beginPath(); g.arc(x, y, size / 2, 0, Math.PI * 2); g.fill();
       }
       g.globalAlpha = 1;
@@ -1523,6 +1687,11 @@
         renderHp(ent);
         state.q = makeQuestion('battle', ent.beast.name);
         sound('roar');
+        // 野獸大吼、雙方之間跳出 ⚔️
+        ent.introT = performance.now();
+        const pc = center(p), ec = center(ent);
+        addFx({ kind: 'pop', emoji: '⚔️', x: (pc.x + ec.x) / 2, y: (pc.y + ec.y) / 2 - 30, size: 30, dur: 1000 });
+        addFx({ kind: 'pop', emoji: '❗', x: pc.x, y: pc.y - 40, size: 22, dur: 700 });
       }
       presentQuestion();
     }
@@ -1822,14 +1991,33 @@
       p.attackT = performance.now();
       p.ax = Math.sign(ent.x - p.x);
       p.ay = Math.sign(ent.y - p.y);
-      sound('slash');
+      const ec = center(ent);
+      const finisher = ent.hp <= 1;
+      sound('swing');
+      // 劍光
+      addFx({ kind: 'slash', x: ec.x - p.ax * 6, y: ec.y - p.ay * 6, dx: p.ax || 1, dy: p.ay, dur: 320 }, 220);
       setTimeout(() => {
         if (!state || state.active !== ent) return;
+        // 命中：火花、衝擊波、畫面震動、傷害數字
         ent.hp = Math.max(0, ent.hp - 1);
         ent.hitT = performance.now();
         renderHp(ent);
-        addFloat(ent.x, ent.y, '-1', '#e0485a');
+        sound('hit');
+        burst(ec.x, ec.y, 14, ['#fff', '#ffd65a', '#f5b82e', '#ffeaa0'], { speed: .16, life: 520, size: 3.2 });
+        addFx({ kind: 'ring', x: ec.x, y: ec.y, color: '#ffd65a', r: 30, dur: 380 });
+        addFx({ kind: 'dmg', x: ec.x, y: ec.y - TS * .5, text: finisher ? '-1 💥' : '-1', color: '#e0485a', dur: 900 });
+        shakeScreen(finisher ? 7 : 5, 240);
         if (ent.hp <= 0) {
+          // 打倒：大爆炸、星星、金幣飛向騎士
+          const pc = center(p);
+          burst(ec.x, ec.y, 26, ['#e8743b', '#f5b82e', '#2fa85c', '#3d8fd6', '#e0485a', '#fff'], { speed: .2, life: 800, size: 3.6, delay: 380 });
+          burst(ec.x, ec.y, 6, ['#fff'], { emoji: ['💫', '⭐', '✨'], speed: .1, life: 900, delay: 380 });
+          addFx({ kind: 'ring', x: ec.x, y: ec.y, color: '#fff', r: 50, dur: 500 }, 380);
+          shakeScreen(9, 320, 380);
+          for (let i = 0; i < Math.min(ent.beast.reward, 5); i++) {
+            addFx({ kind: 'fly', emoji: '🪙', x: ec.x, y: ec.y, tx: pc.x, ty: pc.y - 10, arc: 40 + i * 6, size: 18, dur: 650 }, 700 + i * 90);
+          }
+          setTimeout(() => sound('coin'), 1150);
           addCoins(ent.beast.reward, ent);
           fb.innerHTML = `${text}<br>🎉 打倒${ent.beast.name}了！獲得 🪙 ${ent.beast.reward} 枚`;
           sound('win');
@@ -1838,16 +2026,38 @@
           fb.innerHTML = `${text}<br>${ent.beast.name}還有 ${ent.hp} 點生命！`;
           showNext('fight', '下一回合 ⚔️');
         }
-      }, 200);
+      }, 300);
     }
 
     // 答錯就扣 1 顆愛心；野獸還會撲過來反擊
     function loseHeart(ent) {
       const now = performance.now();
-      if (ent.type === 'beast') ent.lungeT = now;
-      state.p.hurtT = now + 150;
+      const p = state.p;
+      p.kx = -Math.sign(ent.x - p.x); p.ky = -Math.sign(ent.y - p.y);
+      const pc = center(p), ec = center(ent);
+      if (ent.type === 'beast') {
+        // 野獸蓄力 → 撲過來 → 爪痕、紅光、畫面震動
+        ent.lungeT = now;
+        p.hurtT = now + 300;
+        setTimeout(() => sound('claw'), 280);
+        if (ent.beast.boss) {
+          // 飛龍噴火
+          for (let i = 0; i < 7; i++) {
+            addFx({ kind: 'fly', emoji: '🔥', x: ec.x, y: ec.y - 6, tx: pc.x + (Math.random() - .5) * 16, ty: pc.y + (Math.random() - .5) * 16, size: 20, grow: true, wobble: true, dur: 380 }, 120 + i * 45);
+          }
+          burst(pc.x, pc.y, 10, ['#e8743b', '#f5b82e', '#e0485a'], { speed: .1, life: 500, delay: 420 });
+        } else {
+          addFx({ kind: 'claw', x: pc.x, y: pc.y, dur: 520 }, 300);
+        }
+        shakeScreen(8, 280, 300);
+        flashScreen(300);
+        addFx({ kind: 'pop', emoji: '💔', x: pc.x, y: pc.y - 34, size: 24, dur: 900 }, 320);
+      } else {
+        p.hurtT = now;
+        flashScreen(0);
+        addFx({ kind: 'pop', emoji: '💔', x: pc.x, y: pc.y - 34, size: 24, dur: 900 });
+      }
       state.hearts = Math.max(0, state.hearts - 1);
-      addFloat(state.p.x, state.p.y, '-❤️', '#e0485a');
       let msg = ent.type === 'beast' ? `${ent.beast.name}反擊了！失去 1 顆愛心。` : '答錯了，失去 1 顆愛心。';
       if (state.hearts === 0) {
         const lost = Math.min(3, state.coins);
@@ -2032,6 +2242,9 @@
           coin:  { wave: 'square', vol: 0.06, notes: [[988, 0.07], [1319, 0.18]] },
           roar:  { wave: 'sawtooth', vol: 0.08, notes: [[140, 0.18], [110, 0.3]] },
           slash: { wave: 'sawtooth', vol: 0.07, notes: [[900, 0.04], [500, 0.08]] },
+          swing: { wave: 'sawtooth', vol: 0.05, notes: [[1200, 0.03], [800, 0.04], [450, 0.06]] },
+          hit:   { wave: 'square', vol: 0.08, notes: [[180, 0.06], [90, 0.12]] },
+          claw:  { wave: 'sawtooth', vol: 0.08, notes: [[520, 0.05], [300, 0.06], [180, 0.1]] },
           good:  { wave: 'sine', notes: [[523, 0.1], [659, 0.1], [784, 0.18]] },
           bad:   { wave: 'triangle', notes: [[220, 0.25]] },
           win:   { wave: 'sine', notes: [[523, 0.12], [659, 0.12], [784, 0.12], [1047, 0.35]] },
