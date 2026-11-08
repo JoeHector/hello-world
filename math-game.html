@@ -154,6 +154,14 @@
     .review-item.wrong { background: #fff0f2; }
     .review-item .yours { color: var(--red); }
 
+    /* 確認視窗 */
+    .modal { position: fixed; inset: 0; background: rgba(59,47,92,.45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+    .modal[hidden] { display: none; }
+    .modal-box { background: #fff; color: var(--ink); border-radius: 24px; padding: 24px 20px; max-width: 340px; width: 100%; text-align: center; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow); }
+    .modal-box p { font-size: 1.2rem; line-height: 1.6; }
+    .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .modal-actions .btn { font-size: 1.1rem; padding: 12px; }
+
     /* 彩帶 */
     .confetti { position: fixed; top: -20px; width: 12px; height: 12px; pointer-events: none; z-index: 99; animation: fall linear forwards; }
     @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
@@ -256,6 +264,16 @@
       <button class="btn" id="again-btn">再玩一次 🔁</button>
       <button class="btn secondary" id="home-btn">回到首頁 🏠</button>
     </section>
+  </div>
+
+  <div class="modal" id="quit-modal" hidden>
+    <div class="modal-box">
+      <p>要回到首頁嗎？<br>這一回合的進度會不見喔！</p>
+      <div class="modal-actions">
+        <button class="btn secondary" id="quit-no">繼續玩</button>
+        <button class="btn" id="quit-yes">回首頁</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -520,7 +538,7 @@
       if (k) press(k.dataset.key);
     });
     document.addEventListener('keydown', (e) => {
-      if (!$('game-screen').classList.contains('active')) return;
+      if (!$('game-screen').classList.contains('active') || !$('quit-modal').hidden) return;
       if (/^[0-9]$/.test(e.key)) press(e.key);
       else if (e.key === 'Backspace') press('del');
       else if (e.key === 'Enter') press('ok');
@@ -528,8 +546,10 @@
     $('start-btn').addEventListener('click', () => { sound('tap'); startGame(); });
     $('again-btn').addEventListener('click', () => { sound('tap'); startGame(); });
     $('home-btn').addEventListener('click', () => { sound('tap'); showBest(); showScreen('start-screen'); });
-    $('quit-btn').addEventListener('click', () => {
-      if (confirm('要回到首頁嗎？這一回合的進度會不見喔！')) { state = null; showBest(); showScreen('start-screen'); }
+    $('quit-btn').addEventListener('click', () => { sound('tap'); $('quit-modal').hidden = false; });
+    $('quit-no').addEventListener('click', () => { sound('tap'); $('quit-modal').hidden = true; });
+    $('quit-yes').addEventListener('click', () => {
+      sound('tap'); $('quit-modal').hidden = true; state = null; showBest(); showScreen('start-screen');
     });
 
     showBest();
