@@ -627,7 +627,77 @@
     // =====================================================================
     // 隨機地圖
     // =====================================================================
+    // 產生地圖，並且檢查到能走到終點才拿來玩；檢查沒過就整張重新產生
     function generateWorld(n) {
+      let world = null;
+      for (let attempt = 1; attempt <= 60; attempt++) {
+        world = buildWorld(n);
+        world.attempts = attempt;
+        if (validateWorld(world)) return world;
+      }
+      // 理論上不會走到這裡；萬一真的發生，就直接鋪一條直直的路到城門
+      forceRoad(world);
+      return world;
+    }
+
+    const ROAD = new Set([T.PATH, T.BRIDGE, T.GATE]);
+
+    // 從 from 出發，能走到的格子。canStep 決定哪些格子可以走
+    function flood(world, from, canStep) {
+      const { W, H, tiles } = world;
+      const seen = Array.from({ length: H }, () => new Array(W).fill(false));
+      const queue = [from];
+      seen[from.y][from.x] = true;
+      for (let i = 0; i < queue.length; i++) {
+        const c = queue[i];
+        for (const [dx, dy] of Object.values(DIRS)) {
+          const nx = c.x + dx, ny = c.y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny][nx] || !canStep(tiles[ny][nx])) continue;
+          seen[ny][nx] = true;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+      return seen;
+    }
+
+    // 檢查三件事：
+    // 1. 只走「道路」（土路、木橋），就能從村莊走到每個目標和城門
+    // 2. 所有目標、寶箱和城門都走得到
+    // 3. 城門前面有路可以進去，目標不會擋在城門上
+    function validateWorld(world) {
+      const { start, gate, pois, bossPos, chests, tiles } = world;
+      const targets = [...pois, bossPos];
+      if (tiles[start.y][start.x] !== T.PATH || tiles[gate.y][gate.x] !== T.GATE) return false;
+      if (targets.some(t => t.x === gate.x && t.y === gate.y)) return false;
+
+      const road = flood(world, start, t => ROAD.has(t));
+      if (!road[gate.y][gate.x]) return false;
+      if (targets.some(t => !road[t.y][t.x])) return false;
+
+      const walk = flood(world, start, t => !SOLID.has(t));
+      if ([...targets, ...chests].some(t => !walk[t.y][t.x])) return false;
+
+      const left = tiles[gate.y][gate.x - 1];
+      return ROAD.has(left);
+    }
+
+    function forceRoad(world) {
+      const { tiles, start, gate, pois, bossPos } = world;
+      const pave = (x, y) => { if (tiles[y][x] === T.WATER) tiles[y][x] = T.BRIDGE; else if (!ROAD.has(tiles[y][x])) tiles[y][x] = T.PATH; };
+      const route = [start, ...pois, bossPos, { x: gate.x - 1, y: gate.y }];
+      for (let i = 0; i < route.length - 1; i++) {
+        const a = route[i], b = route[i + 1];
+        for (let x = a.x; x !== b.x; x += Math.sign(b.x - x)) pave(x, a.y);
+        for (let y = a.y; y !== b.y; y += Math.sign(b.y - y)) pave(b.x, y);
+        pave(b.x, b.y);
+      }
+      tiles[gate.y][gate.x] = T.GATE;
+      // 走不到的寶箱就拿掉
+      const walk = flood(world, start, t => !SOLID.has(t));
+      world.chests = world.chests.filter(c => walk[c.y][c.x]);
+    }
+
+    function buildWorld(n) {
       const [W, H] = MAP_SIZES[n] || MAP_SIZES[8];
       const tiles = Array.from({ length: H }, () => new Array(W).fill(T.GRASS));
       const vari = Array.from({ length: H }, () => Array.from({ length: W }, () => Math.random()));
