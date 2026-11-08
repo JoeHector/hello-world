@@ -214,6 +214,8 @@
       .story b { font-size: 1.12rem; }
       .answer-box { height: 48px; font-size: 1.7rem; min-width: 80px; }
       .answer-row { font-size: 1.15rem; }
+      .slot { width: 38px; height: 44px; font-size: 1.6rem; }
+      .sheet .letterpad { gap: 6px; }
       .dpad { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); }
       .guide { max-width: 230px; font-size: .78rem; padding: 6px 10px; }
       .minimap { width: 104px; }
@@ -241,6 +243,23 @@
     .story b { color: var(--blue-dark); font-size: 1.32rem; padding: 0 2px; }
     .story .ask { display: block; margin-top: 6px; font-weight: bold; }
 
+    /* 英文拼字 */
+    .spell-row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+    .slot {
+      width: 46px; height: 56px; border: 4px dashed #f2c2a5; border-radius: 12px; background: #fff;
+      display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; color: var(--accent);
+      font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif;
+    }
+    .slot.active { border-style: solid; border-color: var(--accent); box-shadow: 0 0 0 4px #ffe3d2; }
+    .slot.correct { border-style: solid; border-color: var(--green); color: var(--green); background: #e8f8ee; box-shadow: none; }
+    .slot.wrong { border-style: solid; border-color: var(--red); color: var(--red); background: #fdecee; animation: shake .4s; box-shadow: none; }
+    .letterpad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .letterpad .key { font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Helvetica Neue", Arial, sans-serif; }
+    .letterpad .key.used { opacity: .25; transform: none; box-shadow: none; }
+    .letterpad .key.wide { grid-column: span 2; }
+    .spell-badge { display: inline-block; background: var(--blue); color: #fff; border-radius: 8px; padding: 0 8px; font-size: .8rem; margin-left: 6px; letter-spacing: 0; vertical-align: 1px; }
+    .hint-word { font-size: 2.2rem; font-weight: bold; letter-spacing: .3em; font-family: "Arial Rounded MT Bold", "Trebuchet MS", Arial, sans-serif; }
+
     .answer-row { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.4rem; font-weight: bold; flex-wrap: wrap; }
     .answer-box {
       min-width: 96px; padding: 0 12px; height: 60px; border-radius: 16px; font-size: 2.1rem;
@@ -254,6 +273,9 @@
     .tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
     .tool { border: 3px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: bold; color: var(--ink); cursor: pointer; }
     .tool:active { transform: scale(.96); }
+    .tool.nudge { animation: nudge .6s ease 2; border-color: var(--gold); }
+    @keyframes nudge { 25% { transform: rotate(-4deg) scale(1.06); } 75% { transform: rotate(4deg) scale(1.06); } }
+    .feedback small { font-size: .85rem; color: var(--muted); font-weight: bold; }
 
     .hint { border-top: 3px dashed var(--line); padding-top: 12px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
     .hint-label { color: var(--muted); font-weight: bold; }
@@ -340,7 +362,7 @@
       <div class="hero">
         <div class="hero-art" aria-hidden="true"><img id="hero-knight" alt="" /><span>🐺</span><span>🗺️</span><span>🏰</span></div>
         <h1>小騎士數學冒險</h1>
-        <p>每次出發都是一張新地圖！上下左右探索，<br>幫助村民、打倒野獸，打開水晶城堡的大門。</p>
+        <p>每次出發都是一張新地圖！上下左右探索，<br>幫助村民、打倒野獸，打開水晶城堡的大門。<br>有些任務還會考你英文拼字喔！<br>答錯會扣 1 顆 ❤️，看提示要花 2 枚 🪙。</p>
       </div>
 
       <div class="card">
@@ -446,7 +468,9 @@
 
             <p class="story" id="story"></p>
 
-            <div class="answer-row">
+            <div class="spell-row" id="spell-row" hidden></div>
+
+            <div class="answer-row" id="answer-row">
               <span>答：</span>
               <span class="answer-box" id="answer-box">?</span>
               <span id="unit">隻</span>
@@ -454,11 +478,12 @@
 
             <div class="tools">
               <button class="tool" id="speak-btn">🔊 唸給我聽</button>
+              <button class="tool" id="say-word-btn" hidden>🔤 聽英文發音</button>
               <button class="tool" id="hint-btn">💡 看提示</button>
             </div>
 
             <div class="hint" id="hint" hidden>
-              <div class="hint-label">💡 可以這樣列式算算看</div>
+              <div class="hint-label" id="hint-label">💡 可以這樣列式算算看</div>
               <div class="equation" id="hint-h"></div>
               <div id="hint-v" hidden>
                 <div class="vertical" id="vertical"></div>
@@ -470,6 +495,7 @@
 
         <div class="sheet-foot">
           <div class="feedback" id="feedback" aria-live="polite"></div>
+          <div class="letterpad" id="letterpad" hidden></div>
           <div class="keypad" id="keypad">
             <button class="key" data-key="1">1</button>
             <button class="key" data-key="2">2</button>
@@ -531,7 +557,8 @@
     const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
     const PRAISE = ['答對了！', '太厲害了！', '完全正確！', '好聰明！', '讚啦！'];
-    const RETRY  = ['差一點點，看看提示再想想 🤔', '沒關係，再試一次！💪', '加油，你可以的！🌈'];
+    const RETRY  = ['差一點點，再想想看 🤔', '沒關係，再試一次！💪', '加油，你可以的！🌈'];
+    const HINT_COST = 2;      // 看提示要花幾枚金幣
 
     // =====================================================================
     // 題庫：村民任務
@@ -606,6 +633,45 @@
         { unit: '點', text: (a, b, n, B) => `${B}伸出爪子，朝${n}的盾牌抓過去。盾牌原本可以擋 <b>${a}</b> 點傷害。被抓了一下以後，少了 <b>${b}</b> 點。${ASK('盾牌現在還可以擋幾點傷害？')}` },
       ],
     };
+
+    // =====================================================================
+    // 題庫：英文拼字（約 20% 的題目）
+    // w = { word, emoji, zh }
+    // =====================================================================
+    const SPELL_RATE = 0.2;
+    const WORDS = {
+      3: [['cat','🐱','貓'], ['dog','🐶','狗'], ['pig','🐷','豬'], ['cow','🐮','牛'], ['hen','🐔','母雞'], ['egg','🥚','蛋'],
+          ['sun','☀️','太陽'], ['bus','🚌','公車'], ['cup','🥤','杯子'], ['hat','🎩','帽子'], ['box','📦','箱子'], ['fox','🦊','狐狸'],
+          ['ant','🐜','螞蟻'], ['bed','🛏️','床'], ['car','🚗','汽車'], ['bee','🐝','蜜蜂'], ['owl','🦉','貓頭鷹'], ['map','🗺️','地圖'], ['key','🔑','鑰匙']],
+      4: [['fish','🐟','魚'], ['bird','🐦','鳥'], ['frog','🐸','青蛙'], ['duck','🦆','鴨子'], ['bear','🐻','熊'], ['lion','🦁','獅子'],
+          ['cake','🍰','蛋糕'], ['milk','🥛','牛奶'], ['book','📖','書'], ['star','⭐','星星'], ['tree','🌳','樹'], ['moon','🌙','月亮'],
+          ['ship','🚢','船'], ['ball','⚽','球'], ['door','🚪','門'], ['kite','🪁','風箏'], ['king','🤴','國王'], ['bell','🔔','鈴鐺']],
+      5: [['apple','🍎','蘋果'], ['bread','🍞','麵包'], ['horse','🐴','馬'], ['sheep','🐑','綿羊'], ['tiger','🐯','老虎'], ['mouse','🐭','老鼠'],
+          ['snake','🐍','蛇'], ['house','🏠','房子'], ['water','💧','水'], ['sword','⚔️','劍'], ['crown','👑','皇冠'], ['cloud','☁️','雲'],
+          ['grape','🍇','葡萄'], ['lemon','🍋','檸檬'], ['robot','🤖','機器人']],
+    };
+    const SPELL_LENGTHS = { 10: [3], 20: [3, 4], 100: [4, 5] };
+    const SPELL_ASK = (w) => ASK(`「${w.zh}」${w.emoji} 的英文怎麼拼？`);
+
+    const SPELL_NPC = [
+      { icon: '👩‍🏫', title: '英文老師的圖卡',
+        text: (w) => `村莊的小學來了一位新的英文老師。老師拿出一張圖卡，上面畫著 ${w.emoji}。她說拼對的人可以得到一枚金色貼紙。${SPELL_ASK(w)}`,
+        win: '老師在你的盾牌上貼了一枚金色貼紙！' },
+      { icon: '🦜', title: '會說英文的鸚鵡',
+        text: (w) => `市場上有一隻會說英文的鸚鵡。牠一直叫著同一個英文單字，可是老闆聽不懂。牠用翅膀指著 ${w.emoji}，看起來很著急。${SPELL_ASK(w)}`,
+        win: '鸚鵡開心地跟著你唸了一遍！' },
+      { icon: '🧝', title: '精靈的魔法書',
+        text: (w) => `森林精靈的魔法書少了一個英文單字。少了這個單字，魔法就不能用。書上只畫著 ${w.emoji} 的圖案。${SPELL_ASK(w)}`,
+        win: '魔法書發出閃亮的光！' },
+      { icon: '📮', title: '郵差的信',
+        text: (w, n) => `郵差叔叔要寄一封信給國外的朋友。信上要寫一個英文單字，可是他忘記怎麼拼了。他畫了一個 ${w.emoji} 給${n}看。${SPELL_ASK(w)}`,
+        win: '信順利寄出去了！' },
+    ];
+    const SPELL_BATTLE = [
+      { text: (w, n, B) => `${B}突然停下來，拿出一張圖卡。圖卡上畫著 ${w.emoji}。牠大聲說：「拼對這個英文單字，我就讓你攻擊！」${SPELL_ASK(w)}` },
+      { text: (w, n, B) => `${B}的寶箱上有一個英文密碼鎖。只要拼對單字，寶箱裡的魔法劍就會飛出來幫忙。鎖上畫著 ${w.emoji}。${SPELL_ASK(w)}` },
+      { text: (w, n, B) => `${n}的劍上刻著古老的魔法文字。只要拼出正確的英文單字，劍就會發光打敗${B}。劍柄上畫著 ${w.emoji} 的圖案。${SPELL_ASK(w)}` },
+    ];
 
     const BEASTS = [
       { icon: '🐺', name: '灰狼', hp: 2, reward: 3 },
@@ -690,19 +756,29 @@
       return { a, b, answer: op === '+' ? a + b : a - b };
     }
 
-    function drawTemplate(kind, op) {
-      const key = kind + op;
-      const pool = kind === 'npc' ? NPC_QUESTS[op] : BATTLE_QUESTS[op];
+    // 從「袋子」裡抽，抽完才重新洗牌，避免一直出現同一題
+    function drawFrom(key, pool) {
       if (!bags[key] || bags[key].length === 0) bags[key] = shuffle(pool);
       return bags[key].pop();
     }
+    const drawTemplate = (kind, op) => drawFrom(kind + op, kind === 'npc' ? NPC_QUESTS[op] : BATTLE_QUESTS[op]);
 
     function makeQuestion(kind, beastName) {
+      if (Math.random() < SPELL_RATE) return makeSpellQuestion(kind, beastName);
       const op = pickOp();
       const tpl = drawTemplate(kind, op);
       const nums = makeNumbers(op);
       const html = tpl.text(nums.a, nums.b, settings.name, beastName || '');
-      return { kind, op, tpl, ...nums, html, unit: tpl.unit, tries: 0, hinted: false };
+      return { type: 'math', kind, op, tpl, ...nums, html, unit: tpl.unit, tries: 0, hinted: false };
+    }
+
+    function makeSpellQuestion(kind, beastName) {
+      const len = pick(SPELL_LENGTHS[settings.level] || [3, 4]);
+      const [word, emoji, zh] = drawFrom('word' + len, WORDS[len]);
+      const w = { word, emoji, zh };
+      const tpl = kind === 'npc' ? drawFrom('spellnpc', SPELL_NPC) : drawFrom('spellbattle', SPELL_BATTLE);
+      const html = tpl.text(w, settings.name, beastName || '');
+      return { type: 'spell', kind, tpl, ...w, answer: word, html, unit: '', tries: 0, hinted: false };
     }
 
     // =====================================================================
@@ -1463,20 +1539,67 @@
       state.marks = {};
       state.locked = false;
       state.asked++;
+      const spell = q.type === 'spell';
       $('story').innerHTML = q.html;
       $('unit').textContent = q.unit;
+      $('answer-row').hidden = spell;
+      $('spell-row').hidden = !spell;
+      $('say-word-btn').hidden = true;
+      $('enc-kind').innerHTML = $('enc-kind').textContent.replace(/英文拼字$/, '') + (spell ? '<span class="spell-badge">英文拼字</span>' : '');
+      if (spell) {
+        // 字母卡：單字的字母 + 幾個不相干的字母，打散
+        const extra = shuffle('abcdefghijklmnopqrstuvwxyz'.split('').filter(c => !q.word.includes(c))).slice(0, Math.ceil((q.word.length + 2) / 4) * 4 - q.word.length); // 湊成 4 的倍數，排起來剛好整齊
+        state.tiles = shuffle([...q.word.split(''), ...extra]).map(ch => ({ ch, used: false }));
+        state.stack = [];
+      }
       $('hint').hidden = true;
       $('hint-btn').hidden = false;
+      $('hint-btn').textContent = `💡 看提示（-${HINT_COST} 🪙）`;
+      $('hint-btn').classList.remove('nudge');
       $('feedback').textContent = '';
       $('feedback').className = 'feedback';
-      $('keypad').hidden = false;
+      setPads(true);
       $('next-btn').hidden = true;
       $('sheet-scroll').scrollTop = 0;
       showAnswer('');
     }
 
+    // 數字鍵盤 / 字母卡：看題目種類決定顯示哪一個
+    function setPads(show) {
+      const spell = !!(state.q && state.q.type === 'spell');
+      $('keypad').hidden = !show || spell;
+      $('letterpad').hidden = !show || !spell;
+      if (show && spell) renderLetterpad();
+    }
+
+    function renderLetterpad() {
+      let html = '';
+      state.tiles.forEach((t, i) => {
+        html += `<button class="key${t.used ? ' used' : ''}" data-tile="${i}" ${t.used ? 'disabled' : ''} aria-label="字母 ${t.ch}">${t.ch}</button>`;
+      });
+      html += '<button class="key del wide" data-key="del" aria-label="刪除">⌫</button>';
+      html += '<button class="key ok wide" data-key="ok" aria-label="確定">✔</button>';
+      $('letterpad').innerHTML = html;
+    }
+
+    // 答錯後輕輕晃一下提示按鈕，提醒可以用金幣換提示
+    function nudgeHint() {
+      const b = $('hint-btn');
+      if (b.hidden) return;
+      b.classList.remove('nudge'); void b.offsetWidth; b.classList.add('nudge');
+    }
+
+    function clearInput() {
+      state.input = '';
+      if (state.q && state.q.type === 'spell') {
+        state.tiles.forEach(t => { t.used = false; });
+        state.stack = [];
+        if (!$('letterpad').hidden) renderLetterpad();
+      }
+    }
+
     // ---------- 提示 ----------
-    const verticalInput = () => settings.layout === 'v' && !$('hint').hidden;
+    const verticalInput = () => settings.layout === 'v' && !$('hint').hidden && !!state.q && state.q.type !== 'spell';
 
     function showHint() {
       const q = state.q;
@@ -1484,6 +1607,19 @@
       q.hinted = true;
       $('hint').hidden = false;
       $('hint-btn').hidden = true;
+      if (q.type === 'spell') {
+        $('hint-label').textContent = `💡 第一個字母是「${q.word[0]}」，一共有 ${q.word.length} 個字母`;
+        $('hint-h').hidden = false;
+        $('hint-v').hidden = true;
+        $('hint-h').innerHTML = `<span class="hint-word">${q.word[0]}${' _'.repeat(q.word.length - 1)}</span>`;
+        $('say-word-btn').hidden = false;
+        sayWord();
+        clearInput();
+        showAnswer('');
+        requestAnimationFrame(() => { const sc = $('sheet-scroll'); sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); });
+        return;
+      }
+      $('hint-label').textContent = '💡 可以這樣列式算算看';
       $('hint-h').hidden = settings.layout === 'v';
       $('hint-v').hidden = settings.layout !== 'v';
       $('hint-h').innerHTML = `<span>${q.a}</span><span class="op">${opSign(q.op)}</span><span>${q.b}</span><span>=</span><span>?</span>`;
@@ -1498,6 +1634,18 @@
 
     // ---------- 答案顯示 ----------
     function showAnswer(status) {
+      if (state.q && state.q.type === 'spell') {
+        const q = state.q;
+        let html = '';
+        for (let i = 0; i < q.word.length; i++) {
+          let cls = 'slot';
+          if (status) cls += ' ' + status;
+          else if (!state.locked && i === state.input.length) cls += ' active';
+          html += `<div class="${cls}">${state.input[i] || ''}</div>`;
+        }
+        $('spell-row').innerHTML = html;
+        return;
+      }
       const box = $('answer-box');
       box.className = 'answer-box' + (status ? ' ' + status : '');
       box.textContent = state.input === '' ? '?' : state.input;
@@ -1558,8 +1706,36 @@
     });
 
     // ---------- 輸入 ----------
+    function pressTile(i) {
+      const q = state.q;
+      const t = state.tiles[i];
+      if (!t || t.used || state.input.length >= q.word.length) return;
+      t.used = true;
+      state.stack.push(i);
+      state.input += t.ch;
+      sound('tap');
+      renderLetterpad();
+      showAnswer('');
+    }
+
     function press(key) {
       if (!state || !state.active || state.locked) return;
+      if (state.q.type === 'spell') {
+        if (key === 'del') {
+          const i = state.stack.pop();
+          if (i !== undefined) { state.tiles[i].used = false; state.input = state.input.slice(0, -1); sound('tap'); }
+          renderLetterpad();
+          showAnswer('');
+        } else if (key === 'ok') {
+          if (state.input.length === state.q.word.length) checkAnswer();
+          else { toast(`要拼滿 ${state.q.word.length} 個字母喔！`); sound('bad'); }
+        } else if (/^[a-z]$/.test(key)) {
+          const i = state.tiles.findIndex(t => !t.used && t.ch === key);
+          if (i >= 0) pressTile(i);
+        }
+        return;
+      }
+      if (!/^([0-9]|del|ok)$/.test(key)) return;
       if (key === 'del') {
         state.input = verticalInput() ? state.input.slice(1) : state.input.slice(0, -1);
         sound('tap');
@@ -1581,7 +1757,8 @@
     function checkAnswer() {
       const q = state.q;
       const ent = state.active;
-      const value = Number(state.input);
+      const spell = q.type === 'spell';
+      const value = spell ? state.input : Number(state.input);
       const fb = $('feedback');
       q.tries++;
 
@@ -1590,6 +1767,7 @@
         if (perfect) { state.stars++; state.perfect++; bump('star-pill'); }
         state.locked = true;
         showAnswer('correct');
+        if (spell) sayWord();
         fb.className = 'feedback good';
         if (ent.type === 'npc') {
           const coins = perfect ? 3 : 2;
@@ -1606,29 +1784,32 @@
       // 答錯
       if (q.tries === 1) state.wrongs.push({ ...q, yours: value, icon: ent.icon });
       fb.className = 'feedback bad';
-      showHint();
-      state.input = String(value);
       showAnswer('wrong');
       sound('bad');
-      const hurtMsg = ent.type === 'beast' ? beastAttack(ent) : '';
+      const hurtMsg = loseHeart(ent);
 
       if (q.tries >= 2) {
         state.locked = true;
         setTimeout(() => { if (state && state.q === q) { state.input = String(q.answer); showAnswer('correct'); } }, 450);
-        const reveal = `正確答案是 ${q.answer} ${q.unit}（${q.a} ${opSign(q.op)} ${q.b} = ${q.answer}）。`;
+        const reveal = spell
+          ? `正確拼法是 ${q.word}（${q.zh}）。`
+          : `正確答案是 ${q.answer} ${q.unit}（${q.a} ${opSign(q.op)} ${q.b} = ${q.answer}）。`;
+        if (spell) setTimeout(sayWord, 500);
         if (ent.type === 'npc') {
           addCoins(1, ent);
-          fb.innerHTML = `${reveal}<br>${q.tpl.win} 獲得 🪙 1 枚`;
+          fb.innerHTML = `${hurtMsg}${reveal}<br>${q.tpl.win} 獲得 🪙 1 枚`;
           resolveEncounter();
         } else {
           fb.innerHTML = `${hurtMsg}${reveal}`;
-          $('keypad').hidden = true;
+          setPads(false);
           // 記住答案後鼓起勇氣再攻擊一次，戰鬥一定會往前進
           setTimeout(() => { if (state && state.active === ent) knightAttack(ent, `${reveal}<br>${settings.name}記住答案，鼓起勇氣揮出一劍！`); }, 1300);
         }
       } else {
-        fb.innerHTML = hurtMsg + pick(RETRY);
-        state.input = '';
+        const hintTip = $('hint').hidden ? `<br><small>需要的話，可以花 ${HINT_COST} 🪙 看提示。</small>` : '';
+        fb.innerHTML = hurtMsg + (spell ? '差一點點，再拼一次 🔤' : pick(RETRY)) + hintTip;
+        clearInput();
+        nudgeHint();
         setTimeout(() => { if (state && state.active && !state.locked) showAnswer(''); }, 700);
       }
     }
@@ -1636,7 +1817,7 @@
     function knightAttack(ent, text) {
       const fb = $('feedback');
       fb.className = 'feedback good';
-      $('keypad').hidden = true;
+      setPads(false);
       const p = state.p;
       p.attackT = performance.now();
       p.ax = Math.sign(ent.x - p.x);
@@ -1660,13 +1841,14 @@
       }, 200);
     }
 
-    function beastAttack(ent) {
+    // 答錯就扣 1 顆愛心；野獸還會撲過來反擊
+    function loseHeart(ent) {
       const now = performance.now();
-      ent.lungeT = now;
+      if (ent.type === 'beast') ent.lungeT = now;
       state.p.hurtT = now + 150;
       state.hearts = Math.max(0, state.hearts - 1);
       addFloat(state.p.x, state.p.y, '-❤️', '#e0485a');
-      let msg = `${ent.beast.name}反擊了！失去 1 顆愛心。`;
+      let msg = ent.type === 'beast' ? `${ent.beast.name}反擊了！失去 1 顆愛心。` : '答錯了，失去 1 顆愛心。';
       if (state.hearts === 0) {
         const lost = Math.min(3, state.coins);
         state.coins -= lost;
@@ -1686,7 +1868,7 @@
     }
 
     function showNext(style, text) {
-      $('keypad').hidden = true;
+      setPads(false);
       $('next-btn').hidden = false;
       $('next-btn').className = 'btn ' + style;
       $('next-btn').textContent = text;
@@ -1760,7 +1942,9 @@
       state.wrongs.forEach(w => {
         const div = document.createElement('div');
         div.className = 'review-item';
-        div.innerHTML = `${w.icon} ${stripTags(w.html)}<br>
+        div.innerHTML = w.type === 'spell'
+          ? `${w.icon} ${stripTags(w.html)}<br><span class="eq">${w.emoji} ${w.zh} = ${w.word}</span>　<span class="yours">你拼 ${w.yours}</span>`
+          : `${w.icon} ${stripTags(w.html)}<br>
           <span class="eq">${w.a} ${opSign(w.op)} ${w.b} = ${w.answer} ${w.unit}</span>　<span class="yours">你寫 ${w.yours}</span>`;
         review.appendChild(div);
       });
@@ -1821,6 +2005,18 @@
         const u = new SpeechSynthesisUtterance(stripTags(state.q.html));
         u.lang = 'zh-TW';
         u.rate = 0.9;
+        speechSynthesis.speak(u);
+      } catch (e) {}
+    }
+
+    // 用英文唸出單字
+    function sayWord() {
+      try {
+        if (!state || !state.q || state.q.type !== 'spell' || !('speechSynthesis' in window)) return;
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(state.q.word);
+        u.lang = 'en-US';
+        u.rate = 0.75;
         speechSynthesis.speak(u);
       } catch (e) {}
     }
@@ -1907,6 +2103,7 @@
         return;
       }
       if (/^[0-9]$/.test(k)) press(k);
+      else if (/^[a-zA-Z]$/.test(k)) press(k.toLowerCase());
       else if (k === 'Backspace') { e.preventDefault(); press('del'); }
       else if (k === 'Enter') {
         e.preventDefault();
@@ -1920,8 +2117,28 @@
       const k = e.target.closest('.key');
       if (k) press(k.dataset.key);
     });
-    $('hint-btn').addEventListener('click', () => { sound('tap'); showHint(); });
+    $('hint-btn').addEventListener('click', () => {
+      if (!state || !state.q || state.locked || !$('hint').hidden) return;
+      if (state.coins < HINT_COST) {
+        sound('bad');
+        toast(`🪙 金幣不夠（要 ${HINT_COST} 枚），先靠自己想想看！`);
+        return;
+      }
+      state.coins -= HINT_COST;
+      updateHud();
+      bump('coin-pill');
+      addFloat(state.p.x, state.p.y - .4, `-${HINT_COST} 🪙`, '#c58a00');
+      sound('coin');
+      showHint();
+    });
     $('speak-btn').addEventListener('click', speak);
+    $('say-word-btn').addEventListener('click', sayWord);
+    $('letterpad').addEventListener('click', (e) => {
+      const b = e.target.closest('.key');
+      if (!b || !state || !state.active || state.locked) return;
+      if (b.dataset.tile !== undefined) pressTile(Number(b.dataset.tile));
+      else press(b.dataset.key);
+    });
     $('next-btn').addEventListener('click', onNext);
     $('start-btn').addEventListener('click', () => { sound('tap'); startGame(); });
     $('again-btn').addEventListener('click', () => { sound('tap'); startGame(); });
