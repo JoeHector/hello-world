@@ -93,48 +93,66 @@
 
     .best { text-align: center; color: var(--muted); font-size: .95rem; }
 
-    /* ---------- 冒險畫面 ---------- */
-    .hud { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    /* ---------- 冒險畫面（全螢幕，地圖在最底層，其他東西疊在上面） ---------- */
+    body.playing { overflow: hidden; }
+    #game-screen.active { position: fixed; inset: 0; z-index: 10; display: block; animation: none; background: #5fa83a; }
+    .stage { position: absolute; inset: 0; user-select: none; -webkit-user-select: none; touch-action: none; }
+    .stage canvas#view { display: block; width: 100%; height: 100%; }
+
+    .hud {
+      position: absolute; z-index: 4; top: calc(10px + env(safe-area-inset-top, 0px));
+      left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+      display: flex; align-items: center; gap: 8px; pointer-events: none;
+    }
+    .hud > * { pointer-events: auto; }
+    .hud .spacer { flex: 1; pointer-events: none; }
     .icon-btn {
       border: 3px solid var(--line); background: var(--paper); border-radius: 14px; width: 44px; height: 44px;
-      font-size: 1.2rem; box-shadow: var(--shadow); cursor: pointer; flex: none;
+      font-size: 1.2rem; box-shadow: var(--shadow); cursor: pointer; flex: none; color: var(--ink); font-family: inherit;
     }
     .pill {
-      background: var(--paper); border: 3px solid var(--line); border-radius: 14px; padding: 6px 10px; font-weight: bold;
+      background: rgba(255,250,240,.95); border: 3px solid var(--line); border-radius: 14px; padding: 6px 10px; font-weight: bold;
       box-shadow: var(--shadow); white-space: nowrap; font-variant-numeric: tabular-nums;
     }
     .pill.hearts { letter-spacing: 1px; font-size: .95rem; }
     .pill.bump { animation: bump .5s; }
     @keyframes bump { 40% { transform: scale(1.2); } }
-    .hud .spacer { flex: 1; }
 
-    .stage {
-      position: relative; height: 320px; border-radius: 22px; overflow: hidden;
-      border: 3px solid var(--grass-dark); box-shadow: var(--shadow); background: #8cca5b;
-      transition: height .3s; user-select: none; -webkit-user-select: none; touch-action: none;
+    .under-hud {
+      position: absolute; z-index: 3; top: calc(66px + env(safe-area-inset-top, 0px));
+      left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none;
     }
-    .stage.compact { height: 200px; }
-    .stage canvas#view { display: block; width: 100%; height: 100%; }
-    .minimap {
-      position: absolute; top: 8px; right: 8px; width: 112px; border-radius: 10px;
-      border: 3px solid rgba(255,255,255,.9); box-shadow: 0 2px 6px rgba(0,0,0,.25); image-rendering: pixelated; background: #2e3b2a;
-    }
-    .stage.compact .minimap { width: 84px; }
     .goals {
-      position: absolute; top: 8px; left: 8px; background: rgba(255,250,240,.92); border-radius: 10px; padding: 3px 8px;
-      font-size: .82rem; font-weight: bold; line-height: 1.5; pointer-events: none;
+      background: rgba(255,250,240,.93); border-radius: 12px; padding: 4px 10px; font-size: .88rem; font-weight: bold;
+      line-height: 1.5; box-shadow: 0 2px 6px rgba(0,0,0,.15); white-space: nowrap;
     }
+    .map-box { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+    .minimap {
+      width: 132px; border-radius: 10px; border: 3px solid rgba(255,255,255,.95);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3); image-rendering: pixelated; background: #2e3b2a; display: block;
+    }
+    .legend {
+      display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 8px; font-size: .75rem; font-weight: bold;
+      background: rgba(255,250,240,.9); border-radius: 8px; padding: 2px 6px; max-width: 132px;
+    }
+    .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 2px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.3); }
     .toast {
-      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100% - 24px);
-      background: rgba(58,46,34,.88); color: #fff; padding: 7px 14px; border-radius: 999px; font-weight: bold; font-size: .95rem;
-      text-align: center; pointer-events: none; animation: pop .25s ease;
+      position: absolute; z-index: 6; left: 50%; top: 32%; transform: translateX(-50%); max-width: calc(100% - 32px);
+      background: rgba(58,46,34,.9); color: #fff; padding: 8px 16px; border-radius: 999px; font-weight: bold; font-size: 1rem;
+      text-align: center; pointer-events: none; animation: pop .25s ease; box-shadow: 0 4px 12px rgba(0,0,0,.2);
     }
 
-    /* 方向鍵 */
-    .controls { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
-    .dpad { display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); gap: 4px; }
+    /* 方向鍵（左下角）和說明（右下角） */
+    .controls {
+      position: absolute; z-index: 3; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; pointer-events: none;
+    }
+    .controls > * { pointer-events: auto; }
+    .dpad { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px); gap: 4px; flex: none; }
     .pad {
-      border: 3px solid var(--line); background: #fff; border-radius: 16px; font-size: 1.6rem; color: var(--ink);
+      border: 3px solid rgba(234,220,194,.95); background: rgba(255,255,255,.85); border-radius: 16px; font-size: 1.6rem; color: var(--ink);
       box-shadow: var(--shadow); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; font-family: inherit;
     }
     .pad.held { transform: translateY(3px); box-shadow: 0 1px 0 rgba(58,46,34,.14); background: #fff0e4; border-color: var(--accent); }
@@ -142,11 +160,66 @@
     .pad[data-dir="left"] { grid-column: 1; grid-row: 2; }
     .pad[data-dir="right"] { grid-column: 3; grid-row: 2; }
     .pad[data-dir="down"] { grid-column: 2; grid-row: 3; }
-    .dpad .hub { grid-column: 2; grid-row: 2; border-radius: 50%; background: var(--line); margin: 12px; }
-    .guide { display: flex; flex-direction: column; gap: 6px; font-size: .95rem; color: var(--muted); line-height: 1.55; min-width: 0; }
-    .guide b { color: var(--ink); font-size: 1.05rem; }
-    .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .82rem; }
-    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 3px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.3); }
+    .dpad .hub { grid-column: 2; grid-row: 2; border-radius: 50%; background: rgba(255,255,255,.5); margin: 14px; }
+    .guide {
+      max-width: 280px; min-width: 0; background: rgba(255,250,240,.93); border-radius: 16px; padding: 10px 12px;
+      font-size: .88rem; color: var(--muted); line-height: 1.55; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .guide b { color: var(--ink); font-size: .98rem; display: block; }
+
+    /* 題目面板：手機從下面滑上來，寬螢幕放在右邊，都疊在地圖上 */
+    .sheet {
+      position: absolute; z-index: 5; left: 0; right: 0; bottom: 0; max-height: 70%;
+      display: flex; flex-direction: column; gap: 10px;
+      background: rgba(255,250,240,.97); border-top: 3px solid var(--line); border-radius: 24px 24px 0 0;
+      box-shadow: 0 -6px 24px rgba(0,0,0,.2);
+      padding-block: 14px calc(12px + env(safe-area-inset-bottom, 0px));
+      padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+      animation: slideUp .3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } }
+    .sheet > * { width: 100%; max-width: 640px; margin: 0 auto; }
+    .sheet-scroll { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+    .sheet-foot { flex: none; display: flex; flex-direction: column; gap: 8px; }
+    #game-screen.encountering .map-box { display: none; }
+    .sheet .key { padding: 7px 0; font-size: 1.45rem; }
+    @media (min-width: 760px) and (min-aspect-ratio: 1/1) {
+      .sheet {
+        left: auto; top: calc(70px + env(safe-area-inset-top, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        right: max(12px, env(safe-area-inset-right, 0px)); width: 430px; max-height: none;
+        border: 3px solid var(--line); border-radius: 24px; padding: 16px; animation: slideIn .3s ease;
+      }
+      @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } }
+      .sheet .key { padding: 9px 0; font-size: 1.6rem; }
+    }
+    /* 橫拿手機（又寬又矮）：題目在左、鍵盤在右 */
+    @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+      .sheet {
+        left: auto; top: calc(8px + env(safe-area-inset-top, 0px)); bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        right: max(8px, env(safe-area-inset-right, 0px)); width: min(640px, 68%); max-height: none;
+        flex-direction: row; gap: 12px; border: 3px solid var(--line); border-radius: 20px; padding: 10px 12px;
+        animation: slideIn .3s ease;
+      }
+      .sheet > * { margin: 0; max-width: none; }
+      .sheet-scroll { flex: 1 1 56%; }
+      .sheet-foot { flex: 0 0 42%; justify-content: flex-end; }
+      .sheet .key { padding: 4px 0; font-size: 1.25rem; border-radius: 12px; }
+      .sheet .keypad { gap: 6px; }
+      .sheet .feedback { font-size: .9rem; }
+      .sheet .btn { padding: 10px; font-size: 1.1rem; }
+      .enc { gap: 8px; }
+      .portrait { width: 46px; height: 46px; font-size: 1.8rem; border-radius: 14px; }
+      .enc-title { font-size: 1.05rem; }
+      .story { font-size: 1rem; line-height: 1.6; }
+      .story b { font-size: 1.12rem; }
+      .answer-box { height: 48px; font-size: 1.7rem; min-width: 80px; }
+      .answer-row { font-size: 1.15rem; }
+      .dpad { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); }
+      .guide { max-width: 230px; font-size: .78rem; padding: 6px 10px; }
+      .minimap { width: 104px; }
+      .legend { max-width: 104px; }
+      @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } }
+    }
 
     /* 任務 / 戰鬥卡 */
     .enc { display: flex; flex-direction: column; gap: 12px; }
@@ -209,7 +282,7 @@
     .feedback.bad { color: var(--red); }
     .feedback:empty { display: none; }
 
-    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .key {
       border: 3px solid var(--line); border-radius: 16px; padding: 9px 0; font-size: 1.6rem; font-weight: bold;
       font-family: inherit; background: #fff; color: var(--ink); box-shadow: var(--shadow); cursor: pointer;
@@ -218,7 +291,6 @@
     .key:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(58,46,34,.14); }
     .key.del { color: var(--red); }
     .key.ok { background: var(--green); border-color: var(--green-dark); color: #fff; box-shadow: 0 5px 0 var(--green-dark); }
-    #next-btn { margin-top: 12px; }
 
     /* ---------- 結果畫面 ---------- */
     .castle-big { font-size: 4.5rem; text-align: center; animation: floaty 1.2s ease-in-out infinite alternate; }
@@ -248,10 +320,11 @@
       .story { font-size: 1.08rem; }
       .pill { padding: 5px 7px; }
       .pill.hearts { font-size: .8rem; }
-      .dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); }
-      .stage { height: 300px; }
-      .stage.compact { height: 190px; }
-      .minimap { width: 96px; }
+      .dpad { grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); }
+      .minimap { width: 104px; }
+      .legend { max-width: 104px; }
+      .guide { font-size: .8rem; padding: 8px 10px; }
+      .guide b { font-size: .88rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -316,22 +389,35 @@
       <p class="best" id="best-text"></p>
     </section>
 
-    <!-- 冒險畫面 -->
+    <!-- 冒險畫面（全螢幕） -->
     <section class="screen" id="game-screen">
+      <div class="stage" id="stage">
+        <canvas id="view"></canvas>
+      </div>
+
       <div class="hud">
         <button class="icon-btn" id="quit-btn" aria-label="回到首頁">🏠</button>
         <div class="pill hearts" id="heart-pill" aria-label="體力"></div>
         <div class="spacer"></div>
         <div class="pill" id="coin-pill">🪙 <span id="coin-count">0</span></div>
         <div class="pill" id="star-pill">⭐ <span id="star-count">0</span></div>
+        <button class="icon-btn" id="fs-btn" aria-label="切換全螢幕">⛶</button>
       </div>
 
-      <div class="stage" id="stage">
-        <canvas id="view"></canvas>
+      <div class="under-hud">
         <div class="goals" id="goals"></div>
-        <canvas class="minimap" id="minimap" aria-label="小地圖"></canvas>
-        <div class="toast" id="toast" hidden></div>
+        <div class="map-box">
+          <canvas class="minimap" id="minimap" aria-label="小地圖"></canvas>
+          <div class="legend">
+            <span><i style="background:#f5b82e"></i>村民</span>
+            <span><i style="background:#e0485a"></i>野獸</span>
+            <span><i style="background:#9b6bff"></i>城堡</span>
+            <span><i style="background:#fff"></i>你</span>
+          </div>
+        </div>
       </div>
+
+      <div class="toast" id="toast" hidden></div>
 
       <!-- 方向鍵 -->
       <div class="controls" id="controls">
@@ -342,70 +428,64 @@
           <button class="pad" data-dir="right" aria-label="往右走">▶</button>
           <button class="pad" data-dir="down" aria-label="往下走">▼</button>
         </div>
-        <div class="guide">
-          <div id="guide"></div>
-          <div class="legend">
-            <span><i style="background:#f5b82e"></i>村民</span>
-            <span><i style="background:#e0485a"></i>野獸</span>
-            <span><i style="background:#9b6bff"></i>城堡</span>
-            <span><i style="background:#fff"></i>你</span>
-          </div>
-        </div>
+        <div class="guide" id="guide"></div>
       </div>
 
-      <!-- 任務 / 戰鬥 -->
-      <div id="encounter" hidden>
-        <div class="card enc" id="enc">
-          <div class="enc-head">
-            <div class="portrait" id="portrait">🐔</div>
-            <div class="meta">
-              <div class="enc-kind" id="enc-kind">村民的請求</div>
-              <h2 class="enc-title" id="enc-title">找回走失的雞</h2>
-              <div class="hpbar" id="hpbar" hidden></div>
+      <!-- 任務 / 戰鬥：疊在地圖上的面板 -->
+      <div class="sheet" id="encounter" hidden>
+        <div class="sheet-scroll" id="sheet-scroll">
+          <div class="enc" id="enc">
+            <div class="enc-head">
+              <div class="portrait" id="portrait">🐔</div>
+              <div class="meta">
+                <div class="enc-kind" id="enc-kind">村民的請求</div>
+                <h2 class="enc-title" id="enc-title">找回走失的雞</h2>
+                <div class="hpbar" id="hpbar" hidden></div>
+              </div>
+            </div>
+
+            <p class="story" id="story"></p>
+
+            <div class="answer-row">
+              <span>答：</span>
+              <span class="answer-box" id="answer-box">?</span>
+              <span id="unit">隻</span>
+            </div>
+
+            <div class="tools">
+              <button class="tool" id="speak-btn">🔊 唸給我聽</button>
+              <button class="tool" id="hint-btn">💡 看提示</button>
+            </div>
+
+            <div class="hint" id="hint" hidden>
+              <div class="hint-label">💡 可以這樣列式算算看</div>
+              <div class="equation" id="hint-h"></div>
+              <div id="hint-v" hidden>
+                <div class="vertical" id="vertical"></div>
+                <div class="v-hint" id="v-hint"></div>
+              </div>
             </div>
           </div>
-
-          <p class="story" id="story"></p>
-
-          <div class="answer-row">
-            <span>答：</span>
-            <span class="answer-box" id="answer-box">?</span>
-            <span id="unit">隻</span>
-          </div>
-
-          <div class="tools">
-            <button class="tool" id="speak-btn">🔊 唸給我聽</button>
-            <button class="tool" id="hint-btn">💡 看提示</button>
-          </div>
-
-          <div class="hint" id="hint" hidden>
-            <div class="hint-label">💡 可以這樣列式算算看</div>
-            <div class="equation" id="hint-h"></div>
-            <div id="hint-v" hidden>
-              <div class="vertical" id="vertical"></div>
-              <div class="v-hint" id="v-hint"></div>
-            </div>
-          </div>
-
-          <div class="feedback" id="feedback"></div>
         </div>
 
-        <div class="keypad" id="keypad">
-          <button class="key" data-key="1">1</button>
-          <button class="key" data-key="2">2</button>
-          <button class="key" data-key="3">3</button>
-          <button class="key" data-key="4">4</button>
-          <button class="key" data-key="5">5</button>
-          <button class="key" data-key="6">6</button>
-          <button class="key" data-key="7">7</button>
-          <button class="key" data-key="8">8</button>
-          <button class="key" data-key="9">9</button>
-          <button class="key del" data-key="del" aria-label="刪除">⌫</button>
-          <button class="key" data-key="0">0</button>
-          <button class="key ok" data-key="ok" aria-label="確定">✔</button>
+        <div class="sheet-foot">
+          <div class="feedback" id="feedback" aria-live="polite"></div>
+          <div class="keypad" id="keypad">
+            <button class="key" data-key="1">1</button>
+            <button class="key" data-key="2">2</button>
+            <button class="key" data-key="3">3</button>
+            <button class="key" data-key="4">4</button>
+            <button class="key" data-key="5">5</button>
+            <button class="key" data-key="6">6</button>
+            <button class="key" data-key="7">7</button>
+            <button class="key" data-key="8">8</button>
+            <button class="key" data-key="9">9</button>
+            <button class="key del" data-key="del" aria-label="刪除">⌫</button>
+            <button class="key" data-key="0">0</button>
+            <button class="key ok" data-key="ok" aria-label="確定">✔</button>
+          </div>
+          <button class="btn go" id="next-btn" hidden>繼續冒險 ▶</button>
         </div>
-
-        <button class="btn go" id="next-btn" hidden>繼續冒險 ▶</button>
       </div>
     </section>
 
@@ -871,7 +951,7 @@
       reveal();
       $('encounter').hidden = true;
       $('controls').hidden = false;
-      $('stage').classList.remove('compact');
+      $('game-screen').classList.remove('encountering');
       $('toast').hidden = true;
       showScreen('game-screen');
       updateHud();
@@ -892,13 +972,14 @@
       g.fillText(ch, x, y);
     }
 
-    function paintStatic() {
+    function paintStatic(scale = DPR) {
       const { W, H, tiles, vari } = state.world;
       staticLayer = document.createElement('canvas');
-      staticLayer.width = W * TS * DPR;
-      staticLayer.height = H * TS * DPR;
+      staticLayer.width = Math.round(W * TS * scale);
+      staticLayer.height = Math.round(H * TS * scale);
+      state.staticScale = scale;
       const g = staticLayer.getContext('2d');
-      g.scale(DPR, DPR);
+      g.scale(scale, scale);
 
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
         const t = tiles[y][x], r = vari[y][x];
@@ -1043,7 +1124,6 @@
         if (e.moving && now - e.t0 >= BEAST_STEP_MS) {
           e.moving = false;
           if (!state.active && manhattan(e, p) === 1) {
-            toast(`⚠️ ${e.beast.name}衝過來了！`);
             startEncounter(e);
           }
         }
@@ -1078,24 +1158,50 @@
         view.height = Math.round(ch * DPR);
       }
       const g = vctx;
-      g.setTransform(DPR, 0, 0, DPR, 0, 0);
       const { W, H } = state.world;
+      const mapW = W * TS, mapH = H * TS;
 
-      // 鏡頭跟著騎士
+      // 大螢幕把地圖放大，讓畫面不會太空
+      const zoom = clamp(Math.min(cw / (15 * TS), ch / (10 * TS)), 1, 2.2);
+      const want = Math.min(DPR * zoom, Math.sqrt(16e6 / (mapW * mapH)));
+      if (Math.abs(want - state.staticScale) > 0.05) paintStatic(want);
+      g.setTransform(DPR * zoom, 0, 0, DPR * zoom, 0, 0);
+      const vw = cw / zoom, vh = ch / zoom;
+
+      // 題目面板蓋住的地方不算，鏡頭對準剩下看得到的區域
+      // 看得到的範圍：x0~x1、y0~y1（遇到村民或野獸時，扣掉上方的狀態列和題目面板）
+      let x0 = 0, x1 = vw, y0 = 0, y1 = vh;
+      const sheet = $('encounter');
+      if (!sheet.hidden) {
+        const r = sheet.getBoundingClientRect();
+        y0 = $('goals').getBoundingClientRect().bottom / zoom;
+        if (r.width < cw * 0.75) x1 = Math.max(vw * .3, r.left / zoom);
+        else y1 = Math.max(y0 + vh * .15, r.top / zoom);
+      }
+
+      // 鏡頭跟著騎士；遇到村民或野獸時，對準兩個人中間
       const pp = lerpPos(state.p, now, STEP_MS);
-      const tx = clamp(pp.x * TS + TS / 2 - cw / 2, 0, Math.max(0, W * TS - cw));
-      const ty = clamp(pp.y * TS + TS / 2 - ch / 2, 0, Math.max(0, H * TS - ch));
+      let fx = pp.x * TS + TS / 2, fy = pp.y * TS + TS / 2;
+      if (state.active) { fx = (fx + state.active.x * TS + TS / 2) / 2; fy = (fy + state.active.y * TS + TS / 2) / 2; }
+      // 讓焦點落在看得到的範圍正中間；必要時可以超出地圖邊緣（超出的地方會被狀態列或面板蓋住）
+      const camFor = (focus, a, b, view, map) => {
+        if (map <= view && a === 0 && b === view) return -(view - map) / 2;
+        return clamp(focus - (a + b) / 2, -a, Math.max(-a, map - b));
+      };
+      const tx = camFor(fx, x0, x1, vw, mapW);
+      const ty = camFor(fy, y0, y1, vh, mapH);
       if (!state.cam.init) { state.cam.x = tx; state.cam.y = ty; state.cam.init = true; }
-      const ease = Math.min(1, dt * 10);
+      const ease = Math.min(1, dt * 8);
       state.cam.x += (tx - state.cam.x) * ease;
       state.cam.y += (ty - state.cam.y) * ease;
-      const cx = Math.round(state.cam.x), cy = Math.round(state.cam.y);
+      const px = DPR * zoom;
+      const cx = Math.round(state.cam.x * px) / px, cy = Math.round(state.cam.y * px) / px;
 
       g.fillStyle = '#5fa83a';
-      g.fillRect(0, 0, cw, ch);
-      g.drawImage(staticLayer, cx * DPR, cy * DPR, cw * DPR, ch * DPR, 0, 0, cw, ch);
+      g.fillRect(0, 0, vw, vh);
       g.save();
       g.translate(-cx, -cy);
+      g.drawImage(staticLayer, 0, 0, mapW, mapH);
 
       // 城門
       const gate = state.world.gate;
@@ -1318,7 +1424,9 @@
       if (ent.x !== p.x) p.face = Math.sign(ent.x - p.x);
       $('controls').hidden = true;
       $('encounter').hidden = false;
-      $('stage').classList.add('compact');
+      $('game-screen').classList.add('encountering');
+      clearTimeout(toastTimer);
+      $('toast').hidden = true;
 
       const enc = $('enc');
       if (ent.type === 'npc') {
@@ -1362,6 +1470,7 @@
       $('feedback').className = 'feedback';
       $('keypad').hidden = false;
       $('next-btn').hidden = true;
+      $('sheet-scroll').scrollTop = 0;
       showAnswer('');
     }
 
@@ -1382,6 +1491,8 @@
         : '答案從最右邊的個位數開始填。不夠減就跟左邊借 1，點上面的數字可以做記號。';
       state.input = '';
       showAnswer('');
+      // 把面板往下捲，讓算式露出來
+      requestAnimationFrame(() => { const sc = $('sheet-scroll'); sc.scrollTo({ top: sc.scrollHeight, behavior: 'smooth' }); });
     }
 
     // ---------- 答案顯示 ----------
@@ -1606,9 +1717,8 @@
         state.q = null;
         $('encounter').hidden = true;
         $('controls').hidden = false;
-        $('stage').classList.remove('compact');
+        $('game-screen').classList.remove('encountering');
         try { speechSynthesis.cancel(); } catch (e) {}
-        $('stage').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       } else {
         state.q = makeQuestion('battle', ent.beast.name);
         presentQuestion();
@@ -1675,8 +1785,23 @@
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       $(id).classList.add('active');
+      document.body.classList.toggle('playing', id === 'game-screen');
+      if (id !== 'game-screen' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
       window.scrollTo(0, 0);
     }
+
+    // 全螢幕按鈕（瀏覽器不支援就藏起來）
+    const fsBtn = $('fs-btn');
+    if (!document.fullscreenEnabled || !document.documentElement.requestFullscreen) fsBtn.hidden = true;
+    fsBtn.addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch (e) {
+        fsBtn.hidden = true;
+        toast('這個視窗不能切換全螢幕，畫面已經是最大了');
+      }
+    });
 
     function stopGame() {
       if (state) { cancelAnimationFrame(state.raf); state.finished = true; }
