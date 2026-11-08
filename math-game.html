@@ -7,16 +7,8 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* 版面：上方是可以左右走動的橫向世界，下方是操作區（走路按鈕，或遇到任務 / 野獸時的題目卡） */
+    /* 版面：上方是俯視角的隨機地圖（畫布 + 小地圖），下方是方向鍵，遇到村民或野獸時換成題目卡 */
     :root {
-      --sky: #cfeeff;
-      --sky-low: #eaf8ff;
-      --hill: #b7e08f;
-      --hill-far: #d3ecb8;
-      --grass: #8fce5c;
-      --grass-dark: #5fa83a;
-      --dirt: #d9b27a;
-      --dirt-dark: #b98d4f;
       --paper: #fffaf0;
       --ink: #3a2e22;
       --muted: #8a7a66;
@@ -26,6 +18,7 @@
       --blue-dark: #2c72b2;
       --green: #2fa85c;
       --green-dark: #23854a;
+      --grass-dark: #5fa83a;
       --red: #e0485a;
       --red-dark: #b8303f;
       --gold: #f5b82e;
@@ -38,7 +31,7 @@
 
     body {
       font-family: "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", "Heiti TC", sans-serif;
-      background: linear-gradient(180deg, var(--sky) 0%, #f3fbe9 50%, #fff6dc 100%);
+      background: linear-gradient(180deg, #cfeeff 0%, #f3fbe9 50%, #fff6dc 100%);
       color: var(--ink);
       min-height: 100vh;
       display: flex;
@@ -51,25 +44,19 @@
 
     [hidden] { display: none !important; }
 
-    .app { width: 100%; max-width: 520px; }
+    .app { width: 100%; max-width: 560px; }
 
     .screen { display: none; flex-direction: column; gap: 12px; animation: pop .3s ease; }
     .screen.active { display: flex; }
     @keyframes pop { from { transform: scale(.97); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-    .card {
-      background: var(--paper);
-      border: 3px solid var(--line);
-      border-radius: 22px;
-      padding: 16px;
-      box-shadow: var(--shadow);
-    }
+    .card { background: var(--paper); border: 3px solid var(--line); border-radius: 22px; padding: 16px; box-shadow: var(--shadow); }
     .card h2 { font-size: 1.05rem; margin-bottom: 10px; }
 
     /* ---------- 開始畫面 ---------- */
     .hero { text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
     .hero-art { display: flex; align-items: flex-end; gap: 14px; font-size: 2.8rem; }
-    .hero-art svg { width: 64px; height: 74px; }
+    .hero-art img { width: 60px; height: 70px; }
     .hero h1 { font-size: 2rem; text-wrap: balance; }
     .hero p { color: var(--muted); line-height: 1.6; text-wrap: balance; }
 
@@ -83,7 +70,7 @@
     .opt .big { font-size: 1.4rem; display: block; }
     .opt.selected { border-color: var(--accent); background: #fff0e4; }
     .opt:active { transform: scale(.95); }
-    .opt:focus-visible, .btn:focus-visible, .key:focus-visible, .icon-btn:focus-visible, .move:focus-visible, .tool:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+    .opt:focus-visible, .btn:focus-visible, .key:focus-visible, .icon-btn:focus-visible, .pad:focus-visible, .tool:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 
     .name-row input {
       width: 100%; font: inherit; font-size: 1.2rem; font-weight: bold; color: var(--ink);
@@ -122,105 +109,44 @@
     .hud .spacer { flex: 1; }
 
     .stage {
-      position: relative; height: 236px; border-radius: 22px; overflow: hidden;
-      border: 3px solid var(--grass-dark); box-shadow: var(--shadow);
-      background: linear-gradient(180deg, var(--sky) 0%, var(--sky-low) 70%);
-      user-select: none; -webkit-user-select: none;
-      transition: height .3s;
+      position: relative; height: 320px; border-radius: 22px; overflow: hidden;
+      border: 3px solid var(--grass-dark); box-shadow: var(--shadow); background: #8cca5b;
+      transition: height .3s; user-select: none; -webkit-user-select: none; touch-action: none;
     }
-    .stage.compact { height: 176px; }
-    .stage.compact .progress-text { display: none; }
-    .clouds, .hills { position: absolute; left: 0; right: 0; pointer-events: none; }
-    .clouds {
-      top: 0; height: 90px;
-      background:
-        radial-gradient(circle at 60px 34px, #fff 0 14px, transparent 15px),
-        radial-gradient(circle at 82px 28px, #fff 0 18px, transparent 19px),
-        radial-gradient(circle at 104px 36px, #fff 0 12px, transparent 13px),
-        radial-gradient(circle at 250px 54px, #fff 0 10px, transparent 11px),
-        radial-gradient(circle at 268px 48px, #fff 0 14px, transparent 15px);
-      background-size: 360px 90px;
-      background-repeat: repeat-x;
+    .stage.compact { height: 200px; }
+    .stage canvas#view { display: block; width: 100%; height: 100%; }
+    .minimap {
+      position: absolute; top: 8px; right: 8px; width: 112px; border-radius: 10px;
+      border: 3px solid rgba(255,255,255,.9); box-shadow: 0 2px 6px rgba(0,0,0,.25); image-rendering: pixelated; background: #2e3b2a;
     }
-    .hills {
-      bottom: 44px; height: 120px;
-      background:
-        radial-gradient(ellipse 120px 70px at 90px 120px, var(--hill) 98%, transparent 100%),
-        radial-gradient(ellipse 150px 90px at 260px 125px, var(--hill-far) 98%, transparent 100%),
-        radial-gradient(ellipse 100px 60px at 400px 120px, var(--hill) 98%, transparent 100%);
-      background-size: 480px 120px;
-      background-repeat: repeat-x;
+    .stage.compact .minimap { width: 84px; }
+    .goals {
+      position: absolute; top: 8px; left: 8px; background: rgba(255,250,240,.92); border-radius: 10px; padding: 3px 8px;
+      font-size: .82rem; font-weight: bold; line-height: 1.5; pointer-events: none;
     }
-    .world { position: absolute; top: 0; left: 0; height: 100%; will-change: transform; }
-    .ground {
-      position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
-      background: linear-gradient(180deg, var(--grass) 0 12px, var(--grass-dark) 12px 15px, var(--dirt) 15px 100%);
+    .toast {
+      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: calc(100% - 24px);
+      background: rgba(58,46,34,.88); color: #fff; padding: 7px 14px; border-radius: 999px; font-weight: bold; font-size: .95rem;
+      text-align: center; pointer-events: none; animation: pop .25s ease;
     }
-    .ground::after {
-      content: ""; position: absolute; left: 0; right: 0; top: 22px; height: 10px;
-      background: repeating-linear-gradient(90deg, var(--dirt-dark) 0 6px, transparent 6px 40px);
-      opacity: .35;
-    }
-    .deco { position: absolute; bottom: 40px; transform: translateX(-50%); font-size: 2rem; opacity: .9; pointer-events: none; }
-    .deco.small { font-size: 1.2rem; bottom: 42px; }
 
-    .ent { position: absolute; bottom: 40px; transform: translateX(-50%); text-align: center; line-height: 1; transition: opacity .6s, transform .6s; }
-    .ent .body { font-size: 2.9rem; display: block; }
-    .ent.beast .body { font-size: 3.3rem; }
-    .ent.boss .body { font-size: 4.6rem; }
-    .ent.chest .body { font-size: 2rem; }
-    .ent.castle .body { font-size: 5.5rem; }
-    .ent .bubble {
-      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 4px;
-      background: #fff; border: 2px solid var(--ink); border-radius: 10px; padding: 1px 6px; font-size: 1rem; white-space: nowrap;
-      animation: hover 1s ease-in-out infinite alternate;
+    /* 方向鍵 */
+    .controls { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+    .dpad { display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px); gap: 4px; }
+    .pad {
+      border: 3px solid var(--line); background: #fff; border-radius: 16px; font-size: 1.6rem; color: var(--ink);
+      box-shadow: var(--shadow); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; font-family: inherit;
     }
-    .ent.beast .bubble { background: #fdecee; border-color: var(--red); color: var(--red-dark); font-weight: bold; font-size: .8rem; }
-    @keyframes hover { to { transform: translateX(-50%) translateY(-4px); } }
-    .ent.defeated { opacity: 0; transform: translateX(-50%) scale(.3) rotate(25deg); }
-    .ent.opened { opacity: 0; transform: translateX(-50%) translateY(-30px); }
-    .ent.hit .body { animation: hit .45s; }
-    @keyframes hit { 0%,100% { transform: translateX(0); filter: none; } 30% { transform: translateX(14px); filter: brightness(1.6) saturate(2) hue-rotate(-30deg); } 60% { transform: translateX(-6px); } }
-    .ent.lunge .body { animation: lunge .45s; }
-    @keyframes lunge { 40% { transform: translateX(-34px) scale(1.08); } }
-
-    .knight { position: absolute; bottom: 40px; width: 56px; margin-left: -28px; }
-    .knight .tag {
-      position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 2px;
-      font-size: .75rem; font-weight: bold; background: rgba(255,255,255,.85); border-radius: 8px; padding: 0 6px; white-space: nowrap;
-    }
-    .knight .sprite { display: block; }
-    .knight svg { display: block; width: 56px; height: 64px; transition: transform .15s; }
-    .knight.left svg { transform: scaleX(-1); }
-    .knight.walking .sprite { animation: step .28s ease-in-out infinite alternate; }
-    @keyframes step { to { transform: translateY(-5px) rotate(-3deg); } }
-    .knight.attack { animation: attack .45s; }
-    @keyframes attack { 40% { transform: translateX(30px); } }
-    .knight.hurt { animation: hurt .5s; }
-    @keyframes hurt { 0%,100% { transform: translateX(0); filter: none; } 25% { transform: translateX(-12px); filter: brightness(1.5) sepia(1) hue-rotate(-50deg) saturate(4); } 60% { transform: translateX(4px); } }
-
-    .float {
-      position: absolute; transform: translateX(-50%); font-weight: bold; font-size: 1.2rem; pointer-events: none;
-      animation: floatUp 1.1s ease-out forwards; text-shadow: 0 2px 0 #fff;
-    }
-    @keyframes floatUp { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -46px); } }
-
-    .progress-text {
-      position: absolute; top: 8px; left: 10px; right: 10px; display: flex; justify-content: space-between; gap: 8px;
-      font-size: .8rem; font-weight: bold; pointer-events: none;
-    }
-    .progress-text span { background: rgba(255,255,255,.8); border-radius: 8px; padding: 2px 8px; }
-
-    /* 走路按鈕 */
-    .controls { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 10px; align-items: stretch; }
-    .move {
-      border: 3px solid var(--line); background: #fff; border-radius: 20px; font-size: 2.2rem; color: var(--ink);
-      box-shadow: var(--shadow); cursor: pointer; padding: 18px 0; touch-action: none; user-select: none; -webkit-user-select: none;
-      font-family: inherit;
-    }
-    .move.held { transform: translateY(4px); box-shadow: 0 1px 0 rgba(58,46,34,.14); background: #fff0e4; border-color: var(--accent); }
-    .guide { display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 4px; font-size: .95rem; color: var(--muted); line-height: 1.5; }
+    .pad.held { transform: translateY(3px); box-shadow: 0 1px 0 rgba(58,46,34,.14); background: #fff0e4; border-color: var(--accent); }
+    .pad[data-dir="up"] { grid-column: 2; grid-row: 1; }
+    .pad[data-dir="left"] { grid-column: 1; grid-row: 2; }
+    .pad[data-dir="right"] { grid-column: 3; grid-row: 2; }
+    .pad[data-dir="down"] { grid-column: 2; grid-row: 3; }
+    .dpad .hub { grid-column: 2; grid-row: 2; border-radius: 50%; background: var(--line); margin: 12px; }
+    .guide { display: flex; flex-direction: column; gap: 6px; font-size: .95rem; color: var(--muted); line-height: 1.55; min-width: 0; }
     .guide b { color: var(--ink); font-size: 1.05rem; }
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .82rem; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 3px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.3); }
 
     /* 任務 / 戰鬥卡 */
     .enc { display: flex; flex-direction: column; gap: 12px; }
@@ -317,11 +243,15 @@
     .confetti { position: fixed; top: -20px; width: 12px; height: 12px; pointer-events: none; z-index: 99; animation: fall linear forwards; }
     @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
-    @media (max-width: 380px) {
+    @media (max-width: 400px) {
       .vertical { --cell: 44px; font-size: 1.9rem; }
       .story { font-size: 1.08rem; }
       .pill { padding: 5px 7px; }
       .pill.hearts { font-size: .8rem; }
+      .dpad { grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); }
+      .stage { height: 300px; }
+      .stage.compact { height: 190px; }
+      .minimap { width: 96px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -330,34 +260,14 @@
   </style>
 </head>
 <body>
-  <!-- 騎士圖案（面向右邊） -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <symbol id="knight-svg" viewBox="0 0 48 56">
-      <path d="M22 6 q5 -6 11 0 q-5 -1 -8 4z" fill="#e0485a" stroke="#3a2e22" stroke-width="1" />
-      <rect x="15" y="22" width="18" height="18" rx="5" fill="#3d8fd6" stroke="#3a2e22" stroke-width="1.5" />
-      <rect x="15" y="32" width="18" height="3" fill="#f5b82e" />
-      <rect x="17" y="40" width="5" height="9" rx="2" fill="#6b5640" />
-      <rect x="26" y="40" width="5" height="9" rx="2" fill="#6b5640" />
-      <rect x="16" y="48" width="7" height="5" rx="2" fill="#3a2e22" />
-      <rect x="25" y="48" width="8" height="5" rx="2" fill="#3a2e22" />
-      <rect x="15" y="6" width="18" height="17" rx="8" fill="#c9d3dd" stroke="#3a2e22" stroke-width="1.5" />
-      <rect x="23" y="12" width="10" height="3.5" rx="1.7" fill="#3a2e22" />
-      <rect x="37" y="7" width="4" height="22" rx="1.5" fill="#eef3f7" stroke="#3a2e22" stroke-width="1.2" />
-      <rect x="33" y="28" width="12" height="3.5" rx="1.5" fill="#f5b82e" stroke="#3a2e22" stroke-width="1" />
-      <rect x="37.5" y="31.5" width="3" height="6" rx="1" fill="#7a4a2a" />
-      <path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="#e8743b" stroke="#3a2e22" stroke-width="1.5" />
-      <path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="#f5b82e" />
-    </symbol>
-  </svg>
-
   <div class="app">
 
     <!-- 開始畫面 -->
     <section class="screen active" id="start-screen">
       <div class="hero">
-        <div class="hero-art" aria-hidden="true"><svg><use href="#knight-svg" /></svg><span>🐺</span><span>🏰</span></div>
+        <div class="hero-art" aria-hidden="true"><img id="hero-knight" alt="" /><span>🐺</span><span>🗺️</span><span>🏰</span></div>
         <h1>小騎士數學冒險</h1>
-        <p>左右移動騎士，幫助路上的村民、打倒擋路的野獸，<br>一路前往水晶城堡！每一關都要靠數學解決。</p>
+        <p>每次出發都是一張新地圖！上下左右探索，<br>幫助村民、打倒野獸，打開水晶城堡的大門。</p>
       </div>
 
       <div class="card">
@@ -394,15 +304,15 @@
       </div>
 
       <div class="card">
-        <h2>④ 冒險有多長？</h2>
+        <h2>④ 地圖有多大？</h2>
         <div class="options" data-group="count">
-          <button class="opt" data-value="5"><span class="big">5</span>關</button>
-          <button class="opt selected" data-value="8"><span class="big">8</span>關</button>
-          <button class="opt" data-value="12"><span class="big">12</span>關</button>
+          <button class="opt" data-value="5"><span class="big">小</span>5 個目標</button>
+          <button class="opt selected" data-value="8"><span class="big">中</span>8 個目標</button>
+          <button class="opt" data-value="12"><span class="big">大</span>12 個目標</button>
         </div>
       </div>
 
-      <button class="btn" id="start-btn">出發冒險 ⚔️</button>
+      <button class="btn" id="start-btn">產生地圖，出發！⚔️</button>
       <p class="best" id="best-text"></p>
     </section>
 
@@ -417,25 +327,30 @@
       </div>
 
       <div class="stage" id="stage">
-        <div class="clouds" id="clouds"></div>
-        <div class="hills" id="hills"></div>
-        <div class="world" id="world">
-          <div class="ground"></div>
-          <div id="decos"></div>
-          <div id="ents"></div>
-          <div class="knight" id="knight">
-            <span class="tag" id="knight-tag">小騎士</span>
-            <span class="sprite"><svg><use href="#knight-svg" /></svg></span>
-          </div>
-        </div>
-        <div class="progress-text"><span id="progress-left">已過 0 關</span><span id="progress-right">🏰 還有 8 關</span></div>
+        <canvas id="view"></canvas>
+        <div class="goals" id="goals"></div>
+        <canvas class="minimap" id="minimap" aria-label="小地圖"></canvas>
+        <div class="toast" id="toast" hidden></div>
       </div>
 
-      <!-- 走路 -->
+      <!-- 方向鍵 -->
       <div class="controls" id="controls">
-        <button class="move" id="left-btn" aria-label="往左走">◀</button>
-        <div class="guide" id="guide"><b>按住箭頭走路</b>往右走，去水晶城堡！</div>
-        <button class="move" id="right-btn" aria-label="往右走">▶</button>
+        <div class="dpad">
+          <button class="pad" data-dir="up" aria-label="往上走">▲</button>
+          <button class="pad" data-dir="left" aria-label="往左走">◀</button>
+          <div class="hub"></div>
+          <button class="pad" data-dir="right" aria-label="往右走">▶</button>
+          <button class="pad" data-dir="down" aria-label="往下走">▼</button>
+        </div>
+        <div class="guide">
+          <div id="guide"></div>
+          <div class="legend">
+            <span><i style="background:#f5b82e"></i>村民</span>
+            <span><i style="background:#e0485a"></i>野獸</span>
+            <span><i style="background:#9b6bff"></i>城堡</span>
+            <span><i style="background:#fff"></i>你</span>
+          </div>
+        </div>
       </div>
 
       <!-- 任務 / 戰鬥 -->
@@ -504,7 +419,7 @@
         <h2>📝 再看一次有點難的題目</h2>
         <div class="review" id="review"></div>
       </div>
-      <button class="btn" id="again-btn">再冒險一次 🔁</button>
+      <button class="btn" id="again-btn">換一張新地圖再玩 🔁</button>
       <button class="btn secondary" id="home-btn">回到首頁 🏠</button>
     </section>
   </div>
@@ -520,18 +435,28 @@
   </div>
 
   <script>
-    // ---------- 設定 ----------
+    // =====================================================================
+    // 設定
+    // =====================================================================
     const settings = { mode: 'add', level: 10, layout: 'h', count: 8, name: '小騎士' };
-    const SPEED = 200;        // 騎士每秒走幾像素
-    const GAP = 74;           // 遇到村民或野獸時，騎士停在多遠的地方
-    const SPACING = 430;      // 每一關之間的距離
+    const TS = 44;              // 一格幾像素
+    const STEP_MS = 150;        // 騎士走一格的時間
+    const BEAST_STEP_MS = 320;  // 野獸走一格的時間
     const MAX_HEARTS = 5;
+    const MAP_SIZES = { 5: [30, 22], 8: [38, 26], 12: [46, 32] };
+    const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+    const T = { GRASS: 0, PATH: 1, TREE: 2, ROCK: 3, WATER: 4, BRIDGE: 5, FLOWER: 6, HOUSE: 7, CASTLE: 8, GATE: 9 };
+    const SOLID = new Set([T.TREE, T.ROCK, T.WATER, T.HOUSE, T.CASTLE]);
+    const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 
     const PRAISE = ['答對了！', '太厲害了！', '完全正確！', '好聰明！', '讚啦！'];
     const RETRY  = ['差一點點，看看提示再想想 🤔', '沒關係，再試一次！💪', '加油，你可以的！🌈'];
 
-    // ---------- 村民任務題庫 ----------
+    // =====================================================================
+    // 題庫：村民任務
     // text(a, b, n, B)：n 是騎士名字，B 是野獸名字
+    // =====================================================================
     const NPC_QUESTS = {
       '+': [
         { icon: '🐔', title: '找回走失的雞', unit: '隻',
@@ -581,7 +506,7 @@
       ],
     };
 
-    // ---------- 戰鬥題庫 ----------
+    // 題庫：戰鬥
     const BATTLE_QUESTS = {
       '+': [
         { unit: '點', text: (a, b, n, B) => `${n}揮劍兩次，第一下對${B}造成 <b>${a}</b> 點傷害，第二下造成 <b>${b}</b> 點。<span class="ask">兩下一共造成幾點傷害？</span>` },
@@ -613,20 +538,45 @@
     ];
     const BOSS = { icon: '🐲', name: '守城飛龍', hp: 3, reward: 8, boss: true };
 
-    const DECOS = ['🌲', '🌳', '🌳', '🌲', '🪨', '🌾'];
-    const SMALL_DECOS = ['🌼', '🌷', '🍄', '🌱'];
-
+    // =====================================================================
+    // 小工具
+    // =====================================================================
     let state = null;
     let bags = {};
-
     const $ = (id) => document.getElementById(id);
     const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const opSign = (op) => (op === '+' ? '+' : '−');
     const stripTags = (html) => html.replace(/<[^>]+>/g, '');
+    const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-    // ---------- 開始畫面 ----------
+    // 騎士圖案（面向右邊），畫布和開始畫面共用
+    const KNIGHT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56" width="96" height="112">
+      <path d="M22 6 q5 -6 11 0 q-5 -1 -8 4z" fill="#e0485a" stroke="#3a2e22" stroke-width="1"/>
+      <rect x="15" y="22" width="18" height="18" rx="5" fill="#3d8fd6" stroke="#3a2e22" stroke-width="1.5"/>
+      <rect x="15" y="32" width="18" height="3" fill="#f5b82e"/>
+      <rect x="17" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
+      <rect x="26" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
+      <rect x="16" y="48" width="7" height="5" rx="2" fill="#3a2e22"/>
+      <rect x="25" y="48" width="8" height="5" rx="2" fill="#3a2e22"/>
+      <rect x="15" y="6" width="18" height="17" rx="8" fill="#c9d3dd" stroke="#3a2e22" stroke-width="1.5"/>
+      <rect x="23" y="12" width="10" height="3.5" rx="1.7" fill="#3a2e22"/>
+      <rect x="37" y="7" width="4" height="22" rx="1.5" fill="#eef3f7" stroke="#3a2e22" stroke-width="1.2"/>
+      <rect x="33" y="28" width="12" height="3.5" rx="1.5" fill="#f5b82e" stroke="#3a2e22" stroke-width="1"/>
+      <rect x="37.5" y="31.5" width="3" height="6" rx="1" fill="#7a4a2a"/>
+      <path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="#e8743b" stroke="#3a2e22" stroke-width="1.5"/>
+      <path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="#f5b82e"/>
+    </svg>`;
+    const KNIGHT_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(KNIGHT_SVG);
+    const knightImg = new Image();
+    knightImg.src = KNIGHT_URL;
+    $('hero-knight').src = KNIGHT_URL;
+
+    // =====================================================================
+    // 開始畫面
+    // =====================================================================
     document.querySelectorAll('.options').forEach(group => {
       group.addEventListener('click', (e) => {
         const btn = e.target.closest('.opt');
@@ -641,10 +591,10 @@
     });
     try { const saved = localStorage.getItem('knight-name'); if (saved) $('knight-name').value = saved; } catch (e) {}
 
-    // ---------- 出題 ----------
-    function pickOp() {
-      return settings.mode === 'mix' ? pick(['+', '-']) : (settings.mode === 'add' ? '+' : '-');
-    }
+    // =====================================================================
+    // 出題
+    // =====================================================================
+    const pickOp = () => settings.mode === 'mix' ? pick(['+', '-']) : (settings.mode === 'add' ? '+' : '-');
 
     function makeNumbers(op) {
       const L = settings.level;
@@ -674,187 +624,628 @@
       return { kind, op, tpl, ...nums, html, unit: tpl.unit, tries: 0, hinted: false };
     }
 
-    // ---------- 建立世界 ----------
+    // =====================================================================
+    // 隨機地圖
+    // =====================================================================
+    function generateWorld(n) {
+      const [W, H] = MAP_SIZES[n] || MAP_SIZES[8];
+      const tiles = Array.from({ length: H }, () => new Array(W).fill(T.GRASS));
+      const vari = Array.from({ length: H }, () => Array.from({ length: W }, () => Math.random()));
+      const inside = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+      const set = (x, y, t) => { if (inside(x, y)) tiles[y][x] = t; };
+
+      // 外圍是森林
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) tiles[y][x] = T.TREE;
+      }
+      // 樹林、石頭、花
+      const clusters = Math.floor((W * H) / 40);
+      for (let c = 0; c < clusters; c++) {
+        const cx = rand(2, W - 3), cy = rand(2, H - 3), r = rand(1, 3);
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy <= r * r + Math.random() * 2) set(cx + dx, cy + dy, T.TREE);
+        }
+      }
+      for (let k = 0; k < (W * H) / 55; k++) { const x = rand(2, W - 3), y = rand(2, H - 3); if (tiles[y][x] === T.GRASS) tiles[y][x] = T.ROCK; }
+      for (let k = 0; k < (W * H) / 22; k++) { const x = rand(2, W - 3), y = rand(2, H - 3); if (tiles[y][x] === T.GRASS) tiles[y][x] = T.FLOWER; }
+
+      // 河流：從上往下彎彎曲曲流過地圖
+      const riverCount = W >= 38 ? 2 : 1;
+      for (let r = 0; r < riverCount; r++) {
+        let x = Math.floor(W * (riverCount === 1 ? rand(40, 60) : (r === 0 ? rand(28, 40) : rand(60, 72))) / 100);
+        const wide = Math.random() < .5;
+        for (let y = 0; y < H; y++) {
+          set(x, y, T.WATER);
+          if (wide) set(x + 1, y, T.WATER);
+          if (Math.random() < .35) x = clamp(x + pick([-1, 1]), 8, W - 10);
+          set(x, y, T.WATER);
+        }
+      }
+
+      // 起點小村莊（左邊）和城堡（右邊）
+      const start = { x: 4, y: rand(5, H - 6) };
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(start.x + dx, start.y + dy, T.GRASS);
+      set(start.x - 1, start.y - 2, T.HOUSE);
+      set(start.x + 1, start.y - 2, T.HOUSE);
+
+      const cy = rand(5, H - 6);
+      const castle = { x: W - 4, y: cy - 1 }; // 城堡佔 2x2：x W-4..W-3, y cy-1..cy
+      for (let dy = -3; dy <= 2; dy++) for (let dx = -4; dx <= 1; dx++) set(W - 4 + dx, cy + dy, T.GRASS);
+      for (let dy = -1; dy <= 0; dy++) for (let dx = 0; dx <= 1; dx++) set(W - 4 + dx, cy + dy, T.CASTLE);
+      const gate = { x: W - 5, y: cy };
+      set(gate.x, gate.y, T.GATE);
+      const bossPos = { x: W - 7, y: cy };
+
+      // 村民和野獸分散在地圖上
+      const kinds = [];
+      const beastCount = Math.floor((n - 1) / 2);
+      for (let i = 0; i < n - 1; i++) kinds.push(i < beastCount ? 'beast' : 'npc');
+      let order = shuffle(kinds);
+      if (order[0] === 'beast') { const j = order.indexOf('npc'); if (j > 0) { order[0] = 'npc'; order[j] = 'beast'; } }
+
+      const pois = [];
+      const x0 = 8, x1 = W - 10, span = (x1 - x0) / order.length;
+      order.forEach((k, i) => {
+        let best = null;
+        for (let tries = 0; tries < 30; tries++) {
+          const x = rand(Math.floor(x0 + i * span), Math.floor(x0 + (i + 1) * span) - 1);
+          const y = i % 2 === 0 ? rand(3, Math.floor(H / 2) - 1) : rand(Math.floor(H / 2), H - 4);
+          const t = tiles[y][x];
+          if (t === T.WATER || t === T.HOUSE || t === T.CASTLE || t === T.GATE) continue;
+          if (pois.some(p => Math.abs(p.x - x) + Math.abs(p.y - y) < 4)) continue;
+          best = { x, y, kind: k };
+          break;
+        }
+        if (!best) best = { x: Math.floor(x0 + (i + .5) * span), y: Math.floor(H / 2) + (i % 2 ? 3 : -3), kind: k };
+        pois.push(best);
+      });
+
+      // 開路：起點 → 每個目標 → 魔王 → 城門。遇到河就搭橋，遇到樹林就砍出小路
+      const carve = (a, b) => {
+        let x = a.x, y = a.y;
+        let guard = 0;
+        while ((x !== b.x || y !== b.y) && guard++ < 500) {
+          const dx = Math.sign(b.x - x), dy = Math.sign(b.y - y);
+          const goX = dx !== 0 && (dy === 0 || Math.random() < (Math.abs(b.x - x) / (Math.abs(b.x - x) + Math.abs(b.y - y))));
+          if (goX) x += dx; else y += dy;
+          const t = tiles[y][x];
+          if (t === T.WATER) tiles[y][x] = T.BRIDGE;
+          else if (t === T.TREE || t === T.ROCK || t === T.GRASS || t === T.FLOWER || t === T.HOUSE) tiles[y][x] = T.PATH;
+        }
+      };
+      const route = [{ x: start.x + 1, y: start.y }, ...pois, bossPos, gate];
+      carve(start, route[0]);
+      for (let i = 0; i < route.length - 1; i++) carve(route[i], route[i + 1]);
+
+      // 目標周圍清出空地
+      [...pois, bossPos].forEach(p => {
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const t = inside(p.x + dx, p.y + dy) ? tiles[p.y + dy][p.x + dx] : null;
+          if (t === T.TREE || t === T.ROCK) set(p.x + dx, p.y + dy, T.GRASS);
+        }
+        if (tiles[p.y][p.x] !== T.BRIDGE) tiles[p.y][p.x] = T.PATH;
+      });
+      set(start.x, start.y, T.PATH);
+      tiles[gate.y][gate.x] = T.GATE;
+
+      // 從起點走得到的格子
+      const reach = Array.from({ length: H }, () => new Array(W).fill(false));
+      const queue = [start];
+      reach[start.y][start.x] = true;
+      while (queue.length) {
+        const c = queue.shift();
+        for (const [dx, dy] of Object.values(DIRS)) {
+          const nx = c.x + dx, ny = c.y + dy;
+          if (!inside(nx, ny) || reach[ny][nx] || SOLID.has(tiles[ny][nx])) continue;
+          reach[ny][nx] = true;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+
+      // 寶箱放在走得到、又離目標遠一點的地方
+      const chests = [];
+      const chestCount = Math.max(3, Math.round(n / 2));
+      for (let tries = 0; tries < 400 && chests.length < chestCount; tries++) {
+        const x = rand(3, W - 4), y = rand(2, H - 3);
+        if (!reach[y][x] || tiles[y][x] === T.GATE || tiles[y][x] === T.BRIDGE) continue;
+        const spot = { x, y };
+        if (manhattan(spot, start) < 5) continue;
+        if ([...pois, bossPos, gate, ...chests].some(p => manhattan(p, spot) < 4)) continue;
+        chests.push(spot);
+      }
+
+      return { W, H, tiles, vari, start, castle, gate, bossPos, pois, chests };
+    }
+
+    // =====================================================================
+    // 開始遊戲
+    // =====================================================================
     function startGame() {
       const name = $('knight-name').value.trim() || '小騎士';
       settings.name = name;
       try { localStorage.setItem('knight-name', name); } catch (e) {}
       bags = {};
+      if (state) cancelAnimationFrame(state.raf);
 
-      const n = settings.count;
-      let kinds = [];
-      const beastCount = Math.floor((n - 1) / 2);
-      for (let i = 0; i < n - 1; i++) kinds.push(i < beastCount ? 'beast' : 'npc');
-      kinds = shuffle(kinds);
-      if (kinds[0] === 'beast') { const j = kinds.indexOf('npc'); if (j > 0) { kinds[0] = 'npc'; kinds[j] = 'beast'; } }
-      kinds.push('boss');
-
+      const world = generateWorld(settings.count);
       const beastBag = shuffle(BEASTS);
       const ents = [];
-      let x = 560;
-      kinds.forEach((k, i) => {
-        if (k === 'npc') {
+      world.pois.forEach(p => {
+        if (p.kind === 'npc') {
           const q = makeQuestion('npc');
-          ents.push({ type: 'npc', x, q, icon: q.tpl.icon, done: false });
+          ents.push({ type: 'npc', x: p.x, y: p.y, icon: q.tpl.icon, q, done: false });
         } else {
-          const beast = k === 'boss' ? BOSS : (beastBag.pop() || pick(BEASTS));
-          ents.push({ type: 'beast', x, beast, icon: beast.icon, hp: beast.hp, done: false });
+          const beast = beastBag.pop() || pick(BEASTS);
+          ents.push({ type: 'beast', x: p.x, y: p.y, hx: p.x, hy: p.y, icon: beast.icon, beast, hp: beast.hp, done: false, nextMove: 0 });
         }
-        if (i < kinds.length - 1 && i % 2 === 0) ents.push({ type: 'chest', x: x + SPACING / 2, coins: rand(2, 4), done: false });
-        x += SPACING;
       });
-      const castleX = x + 40;
+      ents.push({ type: 'beast', x: world.bossPos.x, y: world.bossPos.y, hx: world.bossPos.x, hy: world.bossPos.y, icon: BOSS.icon, beast: BOSS, hp: BOSS.hp, done: false, still: true });
+      world.chests.forEach(c => ents.push({ type: 'chest', x: c.x, y: c.y, coins: rand(2, 4), done: false }));
 
-      if (state) cancelAnimationFrame(state.raf);
+      const now = performance.now();
       state = {
-        x: 130, dir: 1, moving: 0, last: 0, raf: 0, cam: 0, stepTimer: 0,
-        hearts: MAX_HEARTS, coins: 0, stars: 0, perfect: 0, asked: 0, faints: 0,
+        world, ents,
+        p: { x: world.start.x, y: world.start.y, fx: world.start.x, fy: world.start.y, t0: 0, moving: false, face: 1 },
+        cam: { x: 0, y: 0, init: false },
+        explored: Array.from({ length: world.H }, () => new Array(world.W).fill(false)),
+        hearts: MAX_HEARTS, coins: 0, stars: 0, perfect: 0, asked: 0,
         npcsDone: 0, beastsDone: 0,
-        ents, castleX, worldW: castleX + 260,
-        active: null, q: null, input: '', locked: true, marks: {}, wrongs: [], finished: false,
+        npcTotal: ents.filter(e => e.type === 'npc').length,
+        beastTotal: ents.filter(e => e.type === 'beast').length,
+        active: null, q: null, input: '', locked: true, marks: {}, wrongs: [],
+        effects: [], finished: false, raf: 0, last: now, miniT: 0, gateOpen: false,
       };
+      heldDirs.length = 0;
 
-      $('knight-tag').textContent = name;
+      paintStatic();
+      reveal();
       $('encounter').hidden = true;
       $('controls').hidden = false;
       $('stage').classList.remove('compact');
+      $('toast').hidden = true;
       showScreen('game-screen');
-      renderWorld();
       updateHud();
+      toast(`🗺️ 新地圖產生了！${settings.name}從小村莊出發！`, 2600);
       state.raf = requestAnimationFrame(loop);
     }
 
-    function renderWorld() {
-      $('world').style.width = state.worldW + 'px';
+    // =====================================================================
+    // 畫地圖（不會變的部分先畫在一張大畫布上）
+    // =====================================================================
+    let staticLayer = null;
+    const DPR = Math.min(2, window.devicePixelRatio || 1);
 
-      let deco = '';
-      for (let x = 40; x < state.worldW; x += rand(90, 170)) {
-        const near = state.ents.some(e => Math.abs(e.x - x) < 70) || Math.abs(state.castleX - x) < 90 || x < 110;
-        if (near) continue;
-        deco += Math.random() < .55
-          ? `<span class="deco" style="left:${x}px">${pick(DECOS)}</span>`
-          : `<span class="deco small" style="left:${x}px">${pick(SMALL_DECOS)}</span>`;
-      }
-      deco += `<span class="deco" style="left:60px;font-size:2.4rem">🏡</span>`;
-      $('decos').innerHTML = deco;
-
-      const box = $('ents');
-      box.innerHTML = '';
-      state.ents.forEach(e => {
-        const el = document.createElement('div');
-        el.className = 'ent ' + e.type + (e.beast && e.beast.boss ? ' boss' : '');
-        el.style.left = e.x + 'px';
-        if (e.type === 'npc') el.innerHTML = `<span class="bubble">❗</span><span class="body">${e.icon}</span>`;
-        else if (e.type === 'beast') el.innerHTML = `<span class="bubble">${e.beast.name}</span><span class="body">${e.icon}</span>`;
-        else el.innerHTML = `<span class="body">🎁</span>`;
-        box.appendChild(el);
-        e.el = el;
-      });
-      const castle = document.createElement('div');
-      castle.className = 'ent castle';
-      castle.style.left = state.castleX + 'px';
-      castle.innerHTML = '<span class="body">🏰</span>';
-      box.appendChild(castle);
-      render();
+    function emoji(g, ch, x, y, size) {
+      g.font = `${size}px ${EMOJI_FONT}`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(ch, x, y);
     }
 
-    // ---------- 遊戲迴圈 ----------
-    function loop(t) {
-      if (!state || state.finished) return;
-      const dt = state.last ? Math.min(0.05, (t - state.last) / 1000) : 0;
-      state.last = t;
+    function paintStatic() {
+      const { W, H, tiles, vari } = state.world;
+      staticLayer = document.createElement('canvas');
+      staticLayer.width = W * TS * DPR;
+      staticLayer.height = H * TS * DPR;
+      const g = staticLayer.getContext('2d');
+      g.scale(DPR, DPR);
 
-      if (!state.active && state.moving) {
-        let nx = state.x + state.moving * SPEED * dt;
-        nx = Math.max(40, Math.min(state.worldW - 60, nx));
-
-        // 前方第一個還沒解決的村民或野獸會擋住路
-        const block = state.ents.find(e => !e.done && e.type !== 'chest' && e.x > state.x);
-        if (block && nx >= block.x - GAP) {
-          state.x = block.x - GAP;
-          render();
-          startEncounter(block);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const t = tiles[y][x], r = vari[y][x];
+        const px = x * TS, py = y * TS;
+        if (t === T.WATER || t === T.BRIDGE) {
+          g.fillStyle = '#5cb5ea';
+          g.fillRect(px, py, TS, TS);
+          g.strokeStyle = '#9ad6f7';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(px + 12 + r * 14, py + 14 + r * 10, 6, Math.PI * 1.1, Math.PI * 1.9);
+          g.arc(px + 28 - r * 8, py + 32 - r * 6, 5, Math.PI * 1.1, Math.PI * 1.9);
+          g.stroke();
+        } else if (t === T.PATH || t === T.GATE) {
+          g.fillStyle = '#e6c891';
+          g.fillRect(px, py, TS, TS);
+          g.fillStyle = '#d3b274';
+          g.fillRect(px + 8 + r * 20, py + 10 + r * 16, 3, 3);
+          g.fillRect(px + 26 - r * 10, py + 30 - r * 12, 3, 3);
         } else {
-          state.x = nx;
+          g.fillStyle = (x + y) % 2 ? '#93d062' : '#8cca5b';
+          g.fillRect(px, py, TS, TS);
+          if (r < .35) {
+            g.strokeStyle = '#6fb544';
+            g.lineWidth = 2;
+            g.beginPath();
+            const tx = px + 10 + r * 60, ty = py + 30;
+            g.moveTo(tx, ty); g.lineTo(tx - 3, ty - 7);
+            g.moveTo(tx + 4, ty); g.lineTo(tx + 5, ty - 8);
+            g.stroke();
+          }
         }
 
-        state.ents.forEach(c => {
-          if (c.type === 'chest' && !c.done && Math.abs(state.x - c.x) < 28) openChest(c);
-        });
-
-        state.stepTimer -= dt;
-        if (state.stepTimer <= 0 && !state.active) { sound('step'); state.stepTimer = 0.32; }
-
-        if (state.x >= state.castleX - 50) { render(); arriveCastle(); return; }
+        if (t === T.BRIDGE) {
+          const horiz = (x > 0 && tiles[y][x - 1] !== T.WATER) || (x < W - 1 && tiles[y][x + 1] !== T.WATER);
+          g.fillStyle = '#c08a52';
+          g.fillRect(px + (horiz ? 0 : 6), py + (horiz ? 6 : 0), horiz ? TS : TS - 12, horiz ? TS - 12 : TS);
+          g.strokeStyle = '#8e5f30';
+          g.lineWidth = 2;
+          g.beginPath();
+          for (let k = 8; k < TS; k += 9) {
+            if (horiz) { g.moveTo(px + k, py + 6); g.lineTo(px + k, py + TS - 6); }
+            else { g.moveTo(px + 6, py + k); g.lineTo(px + TS - 6, py + k); }
+          }
+          g.stroke();
+        }
+        if (t === T.TREE) emoji(g, r < .55 ? '🌳' : '🌲', px + TS / 2, py + TS / 2, TS * .9);
+        if (t === T.ROCK) emoji(g, '🪨', px + TS / 2, py + TS / 2 + 2, TS * .62);
+        if (t === T.FLOWER) emoji(g, r < .4 ? '🌼' : r < .7 ? '🌷' : '🌸', px + 12 + r * 18, py + 14 + r * 14, TS * .38);
+        if (t === T.HOUSE) emoji(g, '🏡', px + TS / 2, py + TS / 2, TS * .95);
       }
-      const k = $('knight');
-      k.classList.toggle('walking', !!state.moving && !state.active);
-      k.classList.toggle('left', state.dir < 0);
-      render();
+      const c = state.world.castle;
+      emoji(g, '🏰', (c.x + 1) * TS, (c.y + 1) * TS - 4, TS * 2.1);
+    }
+
+    // =====================================================================
+    // 遊戲迴圈
+    // =====================================================================
+    const view = $('view');
+    const vctx = view.getContext('2d');
+    const mini = $('minimap');
+    const mctx = mini.getContext('2d');
+
+    function loop(now) {
+      if (!state || state.finished) return;
+      const dt = Math.min(0.05, (now - state.last) / 1000);
+      state.last = now;
+
+      updatePlayer(now);
+      updateBeasts(now);
+      draw(now, dt);
+      if (now - state.miniT > 200) { drawMinimap(); state.miniT = now; }
       state.raf = requestAnimationFrame(loop);
     }
 
-    function render() {
-      const vw = $('stage').clientWidth || 360;
-      const cam = Math.max(0, Math.min(state.worldW - vw, state.x - vw * 0.4));
-      state.cam = cam;
-      $('world').style.transform = `translateX(${-cam}px)`;
-      $('hills').style.backgroundPositionX = `${-cam * 0.45}px`;
-      $('clouds').style.backgroundPositionX = `${-cam * 0.15}px`;
-      $('knight').style.left = state.x + 'px';
+    // 位置：走路時在兩格之間平滑移動
+    function lerpPos(o, now, dur) {
+      if (!o.moving) return { x: o.x, y: o.y, k: 1 };
+      const k = clamp((now - o.t0) / dur, 0, 1);
+      return { x: o.fx + (o.x - o.fx) * k, y: o.fy + (o.y - o.fy) * k, k };
     }
 
-    function setMoving(dir) {
-      if (!state || state.active || state.finished) return;
-      state.moving = dir;
-      if (dir) state.dir = dir;
+    const tileAt = (x, y) => {
+      const w = state.world;
+      return (x < 0 || y < 0 || x >= w.W || y >= w.H) ? T.TREE : w.tiles[y][x];
+    };
+    // 已經完成的村民和打倒的野獸不會擋路，避免把唯一的小路堵住
+    const blockerAt = (x, y) => state.ents.find(e => e.type !== 'chest' && !e.done && e.x === x && e.y === y);
+    const beastsLeft = () => state.ents.filter(e => e.type === 'beast' && !e.done).length;
+
+    function updatePlayer(now) {
+      const p = state.p;
+      if (p.moving && now - p.t0 >= STEP_MS) {
+        p.moving = false;
+        onArrive();
+        if (!state || state.finished) return;
+      }
+      if (!p.moving && !state.active && heldDirs.length) tryMove(heldDirs[heldDirs.length - 1], now);
     }
 
+    function tryMove(dir, now) {
+      const p = state.p;
+      const [dx, dy] = DIRS[dir];
+      if (dx) p.face = dx;
+      const nx = p.x + dx, ny = p.y + dy;
+
+      const ent = blockerAt(nx, ny);
+      if (ent) { startEncounter(ent); return; }
+      const t = tileAt(nx, ny);
+      if (t === T.GATE && !state.gateOpen) {
+        if (now - (p.bumpT || 0) > 900) {
+          p.bumpT = now;
+          toast(`🔒 城門鎖住了！先打倒所有野獸（還有 ${beastsLeft()} 隻）`, 2400);
+          sound('bad');
+        }
+        return;
+      }
+      if (SOLID.has(t)) return;
+
+      p.fx = p.x; p.fy = p.y;
+      p.x = nx; p.y = ny;
+      p.t0 = now;
+      p.moving = true;
+      sound('step');
+    }
+
+    function onArrive() {
+      const p = state.p;
+      reveal();
+      const chest = state.ents.find(e => e.type === 'chest' && !e.done && e.x === p.x && e.y === p.y);
+      if (chest) openChest(chest);
+      if (tileAt(p.x, p.y) === T.GATE && state.gateOpen) { arriveCastle(); return; }
+      const near = state.ents.find(e => (e.type === 'npc' || e.type === 'beast') && !e.done && manhattan(e, p) === 1);
+      if (near) startEncounter(near);
+    }
+
+    function updateBeasts(now) {
+      if (state.active) return;
+      const p = state.p;
+      state.ents.forEach(e => {
+        if (e.type !== 'beast' || e.done) return;
+        if (e.moving && now - e.t0 >= BEAST_STEP_MS) {
+          e.moving = false;
+          if (!state.active && manhattan(e, p) === 1) {
+            toast(`⚠️ ${e.beast.name}衝過來了！`);
+            startEncounter(e);
+          }
+        }
+        if (e.still || e.moving || now < e.nextMove) return;
+        e.nextMove = now + rand(900, 2000);
+        const [dx, dy] = pick(Object.values(DIRS));
+        const nx = e.x + dx, ny = e.y + dy;
+        if (Math.abs(nx - e.hx) > 2 || Math.abs(ny - e.hy) > 2) return;
+        const t = tileAt(nx, ny);
+        if (SOLID.has(t) || t === T.GATE) return;
+        if (blockerAt(nx, ny) || (nx === p.x && ny === p.y)) return;
+        e.fx = e.x; e.fy = e.y; e.x = nx; e.y = ny; e.t0 = now; e.moving = true;
+      });
+    }
+
+    function reveal() {
+      const { W, H } = state.world;
+      const p = state.p;
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+        const x = p.x + dx, y = p.y + dy;
+        if (x >= 0 && y >= 0 && x < W && y < H && dx * dx + dy * dy <= 18) state.explored[y][x] = true;
+      }
+    }
+
+    // =====================================================================
+    // 繪圖
+    // =====================================================================
+    function draw(now, dt) {
+      const cw = view.clientWidth, ch = view.clientHeight;
+      if (view.width !== Math.round(cw * DPR) || view.height !== Math.round(ch * DPR)) {
+        view.width = Math.round(cw * DPR);
+        view.height = Math.round(ch * DPR);
+      }
+      const g = vctx;
+      g.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const { W, H } = state.world;
+
+      // 鏡頭跟著騎士
+      const pp = lerpPos(state.p, now, STEP_MS);
+      const tx = clamp(pp.x * TS + TS / 2 - cw / 2, 0, Math.max(0, W * TS - cw));
+      const ty = clamp(pp.y * TS + TS / 2 - ch / 2, 0, Math.max(0, H * TS - ch));
+      if (!state.cam.init) { state.cam.x = tx; state.cam.y = ty; state.cam.init = true; }
+      const ease = Math.min(1, dt * 10);
+      state.cam.x += (tx - state.cam.x) * ease;
+      state.cam.y += (ty - state.cam.y) * ease;
+      const cx = Math.round(state.cam.x), cy = Math.round(state.cam.y);
+
+      g.fillStyle = '#5fa83a';
+      g.fillRect(0, 0, cw, ch);
+      g.drawImage(staticLayer, cx * DPR, cy * DPR, cw * DPR, ch * DPR, 0, 0, cw, ch);
+      g.save();
+      g.translate(-cx, -cy);
+
+      // 城門
+      const gate = state.world.gate;
+      if (state.gateOpen) emoji(g, '✨', gate.x * TS + TS / 2, gate.y * TS + TS / 2 + Math.sin(now / 250) * 3, TS * .55);
+      else emoji(g, '🔒', gate.x * TS + TS / 2, gate.y * TS + TS / 2, TS * .5);
+
+      // 物件依照 y 排序，前面的蓋住後面的
+      const items = [];
+      state.ents.forEach(e => { if (!e.gone) items.push({ kind: 'ent', e, pos: lerpPos(e, now, BEAST_STEP_MS) }); });
+      items.push({ kind: 'player', pos: pp });
+      items.sort((a, b) => a.pos.y - b.pos.y);
+
+      items.forEach(it => {
+        if (it.kind === 'player') drawKnight(g, it.pos, now);
+        else drawEnt(g, it.e, it.pos, now);
+      });
+
+      // 飄起來的文字
+      state.effects = state.effects.filter(f => now - f.t0 < 1100);
+      state.effects.forEach(f => {
+        const k = (now - f.t0) / 1100;
+        g.globalAlpha = 1 - k;
+        g.font = 'bold 18px "PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif';
+        g.textAlign = 'center';
+        g.lineWidth = 4;
+        g.strokeStyle = '#fff';
+        g.strokeText(f.text, f.x, f.y - k * 40);
+        g.fillStyle = f.color;
+        g.fillText(f.text, f.x, f.y - k * 40);
+        g.globalAlpha = 1;
+      });
+      g.restore();
+    }
+
+    function shadow(g, x, y, w) {
+      g.fillStyle = 'rgba(0,0,0,.18)';
+      g.beginPath();
+      g.ellipse(x, y, w, w * .35, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    function label(g, text, x, y, color, bg) {
+      g.font = 'bold 12px "PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif';
+      const w = g.measureText(text).width + 10;
+      g.fillStyle = bg;
+      g.beginPath();
+      g.roundRect ? g.roundRect(x - w / 2, y - 9, w, 18, 8) : g.rect(x - w / 2, y - 9, w, 18);
+      g.fill();
+      g.fillStyle = color;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(text, x, y + 1);
+    }
+
+    function drawKnight(g, pos, now) {
+      const p = state.p;
+      let ox = 0, oy = 0;
+      if (p.attackT && now - p.attackT < 320) {
+        const k = Math.sin(Math.PI * (now - p.attackT) / 320) * 16;
+        ox = (p.ax || 0) * k; oy = (p.ay || 0) * k;
+      }
+      let shake = 0;
+      if (p.hurtT && now - p.hurtT < 450) shake = Math.sin((now - p.hurtT) / 25) * 4;
+      const bob = p.moving ? Math.abs(Math.sin(now / 70)) * -3 : 0;
+      const x = pos.x * TS + TS / 2 + ox + shake;
+      const y = pos.y * TS + TS / 2 + oy;
+      shadow(g, x, y + 18, 13);
+      const w = 38, h = 44;
+      g.save();
+      g.translate(x, y + bob);
+      if (p.face < 0) g.scale(-1, 1);
+      if (knightImg.complete && knightImg.naturalWidth) g.drawImage(knightImg, -w / 2, -h / 2 - 2, w, h);
+      else { g.fillStyle = '#3d8fd6'; g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.fill(); }
+      g.restore();
+      if (p.hurtT && now - p.hurtT < 450) {
+        g.fillStyle = 'rgba(224,72,90,.35)';
+        g.beginPath(); g.arc(x, y, 22, 0, Math.PI * 2); g.fill();
+      }
+      label(g, settings.name, x, y - 30, '#3a2e22', 'rgba(255,255,255,.88)');
+    }
+
+    function drawEnt(g, e, pos, now) {
+      let x = pos.x * TS + TS / 2, y = pos.y * TS + TS / 2;
+      let alpha = 1, scale = 1;
+      if (e.type === 'chest') {
+        if (e.done) {
+          const k = (now - e.doneT) / 600;
+          if (k >= 1) { e.gone = true; return; }
+          alpha = 1 - k; y -= k * 20;
+        }
+        g.globalAlpha = alpha;
+        emoji(g, e.done ? '✨' : '🎁', x, y + Math.sin(now / 300 + e.x) * 2, TS * .6);
+        g.globalAlpha = 1;
+        return;
+      }
+      if (e.type === 'beast' && e.done) {
+        const k = Math.max(0, (now - e.doneT) / 700);
+        if (k >= 1) { e.gone = true; return; }
+        alpha = 1 - k; scale = 1 - k * .6;
+      }
+      if (e.hitT && now - e.hitT < 400) x += Math.sin((now - e.hitT) / 30) * 5;
+      if (e.lungeT && now - e.lungeT < 360) {
+        const k = Math.sin(Math.PI * (now - e.lungeT) / 360) * 16;
+        x += Math.sign(state.p.x - e.x) * k;
+        y += Math.sign(state.p.y - e.y) * k;
+      }
+      const boss = e.beast && e.beast.boss;
+      const size = (boss ? TS * 1.45 : e.type === 'beast' ? TS * .95 : TS * .85) * scale;
+      shadow(g, x, y + (boss ? 22 : 16), boss ? 22 : 13);
+      g.globalAlpha = alpha;
+      // 淡淡的底圈，讓綠色的動物在草地上也看得清楚
+      g.fillStyle = e.type === 'beast' ? 'rgba(255,225,228,.75)' : 'rgba(255,246,214,.8)';
+      g.strokeStyle = e.type === 'beast' ? 'rgba(224,72,90,.8)' : 'rgba(245,184,46,.9)';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(x, y + (boss ? -4 : 1), size * .52, 0, Math.PI * 2);
+      g.fill();
+      if (!e.done) g.stroke();
+      emoji(g, e.icon, x, y + (boss ? -6 : 0), size);
+      if (e.hitT && now - e.hitT < 250) {
+        g.fillStyle = 'rgba(255,255,255,.55)';
+        g.beginPath(); g.arc(x, y, size / 2, 0, Math.PI * 2); g.fill();
+      }
+      g.globalAlpha = 1;
+
+      const top = y - (boss ? 46 : 30);
+      if (e.type === 'npc') {
+        const b = Math.sin(now / 250) * 2;
+        if (!e.done) label(g, '❗ 需要幫忙', x, top + b, '#3a2e22', 'rgba(255,240,200,.95)');
+        else label(g, '✅', x, top, '#2fa85c', 'rgba(255,255,255,.9)');
+      } else if (!e.done) {
+        label(g, e.beast.name, x, top, '#fff', 'rgba(184,48,63,.9)');
+      }
+    }
+
+    function drawMinimap() {
+      const { W, H, tiles } = state.world;
+      const s = 3;
+      if (mini.width !== W * s) { mini.width = W * s; mini.height = H * s; }
+      const g = mctx;
+      const colors = {
+        [T.GRASS]: '#8cca5b', [T.FLOWER]: '#8cca5b', [T.PATH]: '#e6c891', [T.GATE]: '#e6c891',
+        [T.TREE]: '#3f8a35', [T.ROCK]: '#9b9b8f', [T.WATER]: '#5cb5ea', [T.BRIDGE]: '#c08a52',
+        [T.HOUSE]: '#d2694a', [T.CASTLE]: '#9b6bff',
+      };
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        g.fillStyle = state.explored[y][x] ? colors[tiles[y][x]] : '#2e3b2a';
+        g.fillRect(x * s, y * s, s, s);
+      }
+      const dot = (x, y, color, r) => {
+        g.fillStyle = '#000';
+        g.fillRect(x * s + 1 - r - 1, y * s + 1 - r - 1, r * 2 + 3, r * 2 + 3);
+        g.fillStyle = color;
+        g.fillRect(x * s + 1 - r, y * s + 1 - r, r * 2 + 1, r * 2 + 1);
+      };
+      const c = state.world.castle;
+      dot(c.x + .5, c.y + .5, '#9b6bff', 3);
+      state.ents.forEach(e => {
+        if (e.done) return;
+        if (e.type === 'npc') dot(e.x, e.y, '#f5b82e', 1);
+        if (e.type === 'beast') dot(e.x, e.y, '#e0485a', e.beast.boss ? 2 : 1);
+      });
+      dot(state.p.x, state.p.y, '#fff', 2);
+    }
+
+    function addFloat(tileX, tileY, text, color) {
+      state.effects.push({ x: tileX * TS + TS / 2, y: tileY * TS, text, color, t0: performance.now() });
+    }
+
+    let toastTimer = 0;
+    function toast(text, ms = 1800) {
+      const t = $('toast');
+      t.textContent = text;
+      t.hidden = false;
+      t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+    }
+
+    // =====================================================================
+    // HUD
+    // =====================================================================
     function updateHud() {
       $('heart-pill').textContent = '❤️'.repeat(state.hearts) + '🤍'.repeat(MAX_HEARTS - state.hearts);
       $('coin-count').textContent = state.coins;
       $('star-count').textContent = state.stars;
-      const total = state.ents.filter(e => e.type !== 'chest').length;
-      const done = state.npcsDone + state.beastsDone;
-      $('progress-left').textContent = `已過 ${done} 關`;
-      $('progress-right').textContent = done >= total ? '🏰 城堡就在前面！' : `🏰 還有 ${total - done} 關`;
-      const next = state.ents.find(e => !e.done && e.type !== 'chest');
-      $('guide').innerHTML = !next
-        ? '<b>道路暢通了！</b>往右走進城堡吧！'
-        : next.type === 'beast'
-          ? `<b>小心！前面有${next.beast.name}</b>按住 ▶ 往右走去挑戰`
-          : '<b>按住箭頭走路</b>前面有人需要幫忙！';
+      $('goals').textContent = `🧑‍🌾 ${state.npcsDone}/${state.npcTotal}　⚔️ ${state.beastsDone}/${state.beastTotal}`;
+      const left = beastsLeft();
+      const npcLeft = state.npcTotal - state.npcsDone;
+      $('guide').innerHTML = left === 0
+        ? '<b>城門打開了！</b>看小地圖，走到紫色的城堡 🏰'
+        : `<b>還有 ${left} 隻野獸、${npcLeft} 位村民</b>看右上角的小地圖找找看！打倒所有野獸，城門就會打開。`;
     }
 
-    function floatText(x, text, color, bottom = 120) {
-      const el = document.createElement('div');
-      el.className = 'float';
-      el.style.left = x + 'px';
-      el.style.bottom = bottom + 'px';
-      el.style.color = color;
-      el.textContent = text;
-      $('world').appendChild(el);
-      setTimeout(() => el.remove(), 1200);
+    function bump(id) {
+      const el = $(id);
+      el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
     }
 
     function openChest(c) {
       c.done = true;
-      c.el.innerHTML = '<span class="body">✨</span>';
-      c.el.classList.add('opened');
+      c.doneT = performance.now();
       state.coins += c.coins;
       updateHud();
       bump('coin-pill');
-      floatText(c.x, `+${c.coins} 🪙`, '#c58a00', 100);
+      addFloat(c.x, c.y, `+${c.coins} 🪙`, '#c58a00');
+      toast(`🎁 打開寶箱，得到 ${c.coins} 枚金幣！`);
       sound('coin');
     }
 
-    // ---------- 遇到村民 / 野獸 ----------
+    // =====================================================================
+    // 遇到村民 / 野獸
+    // =====================================================================
     function startEncounter(ent) {
+      if (state.active || state.finished) return;
       state.active = ent;
-      state.moving = 0;
-      heldKeys.clear();
-      document.querySelectorAll('.move').forEach(b => b.classList.remove('held'));
-      $('knight').classList.remove('walking');
+      heldDirs.length = 0;
+      document.querySelectorAll('.pad').forEach(b => b.classList.remove('held'));
+      const p = state.p;
+      if (ent.x !== p.x) p.face = Math.sign(ent.x - p.x);
       $('controls').hidden = true;
       $('encounter').hidden = false;
       $('stage').classList.add('compact');
@@ -1020,7 +1411,7 @@
         fb.className = 'feedback good';
         if (ent.type === 'npc') {
           const coins = perfect ? 3 : 2;
-          addCoins(coins, ent.x);
+          addCoins(coins, ent);
           fb.innerHTML = `${pick(PRAISE)}${q.tpl.win}<br>獲得 🪙 ${coins} 枚${perfect ? '、⭐ 1 顆' : ''}`;
           sound('good');
           resolveEncounter();
@@ -1041,10 +1432,10 @@
 
       if (q.tries >= 2) {
         state.locked = true;
-        setTimeout(() => { if (state) { state.input = String(q.answer); showAnswer('correct'); } }, 450);
+        setTimeout(() => { if (state && state.q === q) { state.input = String(q.answer); showAnswer('correct'); } }, 450);
         const reveal = `正確答案是 ${q.answer} ${q.unit}（${q.a} ${opSign(q.op)} ${q.b} = ${q.answer}）。`;
         if (ent.type === 'npc') {
-          addCoins(1, ent.x);
+          addCoins(1, ent);
           fb.innerHTML = `${reveal}<br>${q.tpl.win} 獲得 🪙 1 枚`;
           resolveEncounter();
         } else {
@@ -1064,17 +1455,19 @@
       const fb = $('feedback');
       fb.className = 'feedback good';
       $('keypad').hidden = true;
-      const k = $('knight');
-      k.classList.remove('attack'); void k.offsetWidth; k.classList.add('attack');
+      const p = state.p;
+      p.attackT = performance.now();
+      p.ax = Math.sign(ent.x - p.x);
+      p.ay = Math.sign(ent.y - p.y);
       sound('slash');
       setTimeout(() => {
         if (!state || state.active !== ent) return;
         ent.hp = Math.max(0, ent.hp - 1);
+        ent.hitT = performance.now();
         renderHp(ent);
-        ent.el.classList.remove('hit'); void ent.el.offsetWidth; ent.el.classList.add('hit');
-        floatText(ent.x, '-1', '#e0485a', ent.beast.boss ? 150 : 120);
+        addFloat(ent.x, ent.y, '-1', '#e0485a');
         if (ent.hp <= 0) {
-          addCoins(ent.beast.reward, ent.x);
+          addCoins(ent.beast.reward, ent);
           fb.innerHTML = `${text}<br>🎉 打倒${ent.beast.name}了！獲得 🪙 ${ent.beast.reward} 枚`;
           sound('win');
           resolveEncounter();
@@ -1082,24 +1475,20 @@
           fb.innerHTML = `${text}<br>${ent.beast.name}還有 ${ent.hp} 點生命！`;
           showNext('fight', '下一回合 ⚔️');
         }
-      }, 220);
+      }, 200);
     }
 
     function beastAttack(ent) {
-      const b = ent.el;
-      b.classList.remove('lunge'); void b.offsetWidth; b.classList.add('lunge');
-      setTimeout(() => {
-        const k = $('knight');
-        k.classList.remove('hurt'); void k.offsetWidth; k.classList.add('hurt');
-      }, 180);
+      const now = performance.now();
+      ent.lungeT = now;
+      state.p.hurtT = now + 150;
       state.hearts = Math.max(0, state.hearts - 1);
-      floatText(state.x, '-❤️', '#e0485a', 110);
+      addFloat(state.p.x, state.p.y, '-❤️', '#e0485a');
       let msg = `${ent.beast.name}反擊了！失去 1 顆愛心。`;
       if (state.hearts === 0) {
         const lost = Math.min(3, state.coins);
         state.coins -= lost;
         state.hearts = MAX_HEARTS;
-        state.faints++;
         msg += `<br>🧚 森林仙子幫你恢復了全部體力！${lost ? `（掉了 ${lost} 枚金幣）` : ''}`;
       }
       updateHud();
@@ -1107,11 +1496,11 @@
       return msg + '<br>';
     }
 
-    function addCoins(n, x) {
+    function addCoins(n, ent) {
       state.coins += n;
       updateHud();
       bump('coin-pill');
-      floatText(x, `+${n} 🪙`, '#c58a00', 150);
+      addFloat(ent.x, ent.y - .4, `+${n} 🪙`, '#c58a00');
     }
 
     function showNext(style, text) {
@@ -1125,13 +1514,13 @@
     function resolveEncounter() {
       const ent = state.active;
       ent.done = true;
+      ent.doneT = performance.now() + 400;
       state.locked = true;
-      if (ent.type === 'npc') {
-        state.npcsDone++;
-        ent.el.querySelector('.bubble').textContent = '✅';
-      } else {
-        state.beastsDone++;
-        setTimeout(() => ent.el.classList.add('defeated'), 500);
+      if (ent.type === 'npc') state.npcsDone++;
+      else state.beastsDone++;
+      if (ent.type === 'beast' && beastsLeft() === 0 && !state.gateOpen) {
+        state.gateOpen = true;
+        setTimeout(() => toast('🔓 城門打開了！快去城堡！', 3000), 900);
       }
       updateHud();
       $('hint-btn').hidden = true;
@@ -1149,24 +1538,22 @@
         $('controls').hidden = false;
         $('stage').classList.remove('compact');
         try { speechSynthesis.cancel(); } catch (e) {}
+        $('stage').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       } else {
         state.q = makeQuestion('battle', ent.beast.name);
         presentQuestion();
       }
     }
 
-    function bump(id) {
-      const el = $(id);
-      el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
-    }
-
-    // ---------- 抵達城堡 ----------
+    // =====================================================================
+    // 抵達城堡、結算
+    // =====================================================================
     function arriveCastle() {
       state.finished = true;
-      state.moving = 0;
-      $('knight').classList.remove('walking');
+      heldDirs.length = 0;
       sound('win');
-      setTimeout(showResult, 600);
+      draw(performance.now(), 0);
+      setTimeout(showResult, 500);
     }
 
     function showResult() {
@@ -1181,7 +1568,7 @@
       $('result-title').textContent = title;
       $('result-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
       $('result-detail').innerHTML = `
-        <div class="stat"><div class="num">${state.npcsDone}</div><div class="lbl">幫助的村民</div></div>
+        <div class="stat"><div class="num">${state.npcsDone} / ${state.npcTotal}</div><div class="lbl">幫助的村民</div></div>
         <div class="stat"><div class="num">${state.beastsDone}</div><div class="lbl">打倒的野獸</div></div>
         <div class="stat"><div class="num">${state.perfect} / ${state.asked}</div><div class="lbl">一次就算對的題目</div></div>
         <div class="stat"><div class="num">🪙 ${state.coins}</div><div class="lbl">收集的金幣</div></div>`;
@@ -1202,8 +1589,7 @@
       if (ratio >= .7) confetti();
     }
 
-    // ---------- 最佳紀錄 ----------
-    const bestKey = () => `knight-rpg-best-${settings.mode}-${settings.level}-${settings.count}`;
+    const bestKey = () => `knight-map-best-${settings.mode}-${settings.level}-${settings.count}`;
     function saveBest() {
       try {
         const prev = Number(localStorage.getItem(bestKey()) || 0);
@@ -1213,7 +1599,7 @@
     function showBest() {
       let best = 0;
       try { best = Number(localStorage.getItem(bestKey()) || 0); } catch (e) {}
-      $('best-text').textContent = best ? `🏅 這條路線的最多金幣：🪙 ${best} 枚` : '';
+      $('best-text').textContent = best ? `🏅 這種地圖的最多金幣：🪙 ${best} 枚` : '';
     }
 
     function showScreen(id) {
@@ -1225,11 +1611,13 @@
     function stopGame() {
       if (state) { cancelAnimationFrame(state.raf); state.finished = true; }
       state = null;
-      heldKeys.clear();
+      heldDirs.length = 0;
       try { speechSynthesis.cancel(); } catch (e) {}
     }
 
-    // ---------- 唸題目 ----------
+    // =====================================================================
+    // 唸題目、音效、彩帶
+    // =====================================================================
     function speak() {
       try {
         if (!state || !state.q || !('speechSynthesis' in window)) return;
@@ -1241,14 +1629,13 @@
       } catch (e) {}
     }
 
-    // ---------- 音效（瀏覽器合成，不需要音檔） ----------
     let audioCtx = null;
     function sound(type) {
       try {
         audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
         const presets = {
           tap:   { wave: 'sine', notes: [[600, 0.05]] },
-          step:  { wave: 'triangle', vol: 0.06, notes: [[180, 0.05]] },
+          step:  { wave: 'triangle', vol: 0.04, notes: [[170, 0.04]] },
           ding:  { wave: 'sine', notes: [[880, 0.12], [1175, 0.2]] },
           coin:  { wave: 'square', vol: 0.06, notes: [[988, 0.07], [1319, 0.18]] },
           roar:  { wave: 'sawtooth', vol: 0.08, notes: [[140, 0.18], [110, 0.3]] },
@@ -1290,12 +1677,23 @@
       }
     }
 
-    // ---------- 事件 ----------
-    // 按住左右按鈕走路（觸控、滑鼠都可以）
-    [['left-btn', -1], ['right-btn', 1]].forEach(([id, dir]) => {
-      const b = $(id);
-      const start = (e) => { e.preventDefault(); b.classList.add('held'); try { b.setPointerCapture(e.pointerId); } catch (_) {} setMoving(dir); };
-      const end = () => { b.classList.remove('held'); if (state && state.moving === dir) state.moving = 0; };
+    // =====================================================================
+    // 操作：方向鍵按鈕、鍵盤
+    // =====================================================================
+    const heldDirs = [];
+    const holdDir = (d) => { const i = heldDirs.indexOf(d); if (i >= 0) heldDirs.splice(i, 1); heldDirs.push(d); };
+    const releaseDir = (d) => { const i = heldDirs.indexOf(d); if (i >= 0) heldDirs.splice(i, 1); };
+
+    document.querySelectorAll('.pad').forEach(b => {
+      const d = b.dataset.dir;
+      const start = (e) => {
+        e.preventDefault();
+        if (!state || state.active) return;
+        b.classList.add('held');
+        try { b.setPointerCapture(e.pointerId); } catch (_) {}
+        holdDir(d);
+      };
+      const end = () => { b.classList.remove('held'); releaseDir(d); };
       b.addEventListener('pointerdown', start);
       b.addEventListener('pointerup', end);
       b.addEventListener('pointercancel', end);
@@ -1303,15 +1701,13 @@
       b.addEventListener('contextmenu', (e) => e.preventDefault());
     });
 
-    // 鍵盤：← → 或 A D 走路
-    const heldKeys = new Set();
-    const keyDir = (k) => (k === 'ArrowLeft' || k === 'a' || k === 'A') ? 'L' : (k === 'ArrowRight' || k === 'd' || k === 'D') ? 'R' : null;
+    const KEY_DIRS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
     document.addEventListener('keydown', (e) => {
       if (!state || !$('game-screen').classList.contains('active') || !$('quit-modal').hidden) return;
       const k = e.key;
       if (!state.active) {
-        const d = keyDir(k);
-        if (d) { e.preventDefault(); heldKeys.add(d); setMoving(d === 'R' ? 1 : -1); }
+        const d = KEY_DIRS[k];
+        if (d) { e.preventDefault(); holdDir(d); }
         return;
       }
       if (/^[0-9]$/.test(k)) press(k);
@@ -1321,13 +1717,8 @@
         if (!$('next-btn').hidden) onNext(); else press('ok');
       }
     });
-    document.addEventListener('keyup', (e) => {
-      const d = keyDir(e.key);
-      if (!d || !state) return;
-      heldKeys.delete(d);
-      if (!state.active) setMoving(heldKeys.has('R') ? 1 : heldKeys.has('L') ? -1 : 0);
-    });
-    window.addEventListener('blur', () => { heldKeys.clear(); if (state) state.moving = 0; });
+    document.addEventListener('keyup', (e) => { const d = KEY_DIRS[e.key]; if (d) releaseDir(d); });
+    window.addEventListener('blur', () => { heldDirs.length = 0; document.querySelectorAll('.pad').forEach(b => b.classList.remove('held')); });
 
     $('keypad').addEventListener('click', (e) => {
       const k = e.target.closest('.key');
@@ -1339,7 +1730,7 @@
     $('start-btn').addEventListener('click', () => { sound('tap'); startGame(); });
     $('again-btn').addEventListener('click', () => { sound('tap'); startGame(); });
     $('home-btn').addEventListener('click', () => { sound('tap'); stopGame(); showBest(); showScreen('start-screen'); });
-    $('quit-btn').addEventListener('click', () => { sound('tap'); if (state) state.moving = 0; $('quit-modal').hidden = false; });
+    $('quit-btn').addEventListener('click', () => { sound('tap'); heldDirs.length = 0; $('quit-modal').hidden = false; });
     $('quit-no').addEventListener('click', () => { sound('tap'); $('quit-modal').hidden = true; });
     $('quit-yes').addEventListener('click', () => {
       sound('tap'); $('quit-modal').hidden = true; stopGame(); showBest(); showScreen('start-screen');
