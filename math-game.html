@@ -73,6 +73,7 @@
     }
     .opt small { display: block; font-size: .75rem; color: var(--muted); font-weight: normal; margin-top: 2px; }
     .opt .big { font-size: 1.6rem; display: block; }
+    .options.two { grid-template-columns: repeat(2, 1fr); }
     .opt.selected { border-color: var(--purple); background: #efe6ff; }
     .opt:active { transform: scale(.95); }
 
@@ -123,6 +124,45 @@
       75% { transform: translateX(8px); }
     }
 
+    [hidden] { display: none !important; }
+
+    /* 直式 */
+    .vertical {
+      --cell: 56px;
+      display: inline-grid;
+      grid-auto-rows: auto;
+      justify-content: center;
+      column-gap: 6px;
+      row-gap: 4px;
+      font-size: 2.6rem;
+      font-weight: bold;
+      margin: 0 auto;
+      font-variant-numeric: tabular-nums;
+    }
+    .vertical .cell { width: var(--cell); height: 58px; display: flex; align-items: center; justify-content: center; position: relative; }
+    .vertical .op-cell { color: var(--primary); }
+    .vertical .line { grid-column: 1 / -1; height: 0; border-top: 5px solid var(--ink); border-radius: 3px; margin: 2px 0 4px; }
+    .vertical .helper {
+      height: 34px; font-size: 1.05rem; color: var(--purple); border: none; background: none; font-family: inherit; font-weight: bold;
+    }
+    button.helper { border: 2px dashed #e2d6ff; border-radius: 10px; cursor: pointer; width: 40px; justify-self: center; }
+    button.helper.on { border-style: solid; border-color: var(--purple); background: #efe6ff; }
+    .vertical .digit-btn {
+      font: inherit; color: inherit; background: none; border: none; cursor: pointer; border-radius: 12px; width: 100%; height: 100%;
+    }
+    .vertical .digit-btn:hover { background: #faf7ff; }
+    .vertical .struck { color: #c4bcd8; text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 4px; }
+    .vertical .ten-badge {
+      position: absolute; top: -6px; left: -6px; font-size: .85rem; color: var(--purple); background: #efe6ff; border-radius: 8px; padding: 0 4px; line-height: 1.4;
+    }
+    .vbox {
+      border: 4px dashed #d9ccff; border-radius: 14px; background: #faf7ff; color: var(--purple);
+    }
+    .vbox.active { border-style: solid; border-color: var(--purple); box-shadow: 0 0 0 4px #efe6ff; }
+    .vbox.correct { border-style: solid; border-color: var(--green); color: var(--green); background: #e9faef; box-shadow: none; }
+    .vbox.wrong { border-style: solid; border-color: var(--red); color: var(--red); background: #fff0f2; animation: shake .4s; box-shadow: none; }
+    .v-hint { margin-top: 10px; font-size: .95rem; color: var(--muted); line-height: 1.5; }
+
     .visual { margin-top: 14px; font-size: 1.6rem; line-height: 1.5; min-height: 0; word-break: break-all; }
     .visual .crossed { opacity: .3; position: relative; }
     .visual .plus-sign { color: var(--primary); font-weight: bold; margin: 0 6px; }
@@ -166,11 +206,17 @@
     .confetti { position: fixed; top: -20px; width: 12px; height: 12px; pointer-events: none; z-index: 99; animation: fall linear forwards; }
     @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
+    @media (max-width: 360px) {
+      .vertical { --cell: 46px; font-size: 2.1rem; }
+    }
+
     @media (max-height: 700px) {
       .equation { font-size: 2.4rem; }
       .answer-box { height: 60px; }
       .key { padding: 10px 0; font-size: 1.5rem; }
       .visual { font-size: 1.3rem; }
+      .vertical { font-size: 2.1rem; }
+      .vertical .cell { height: 48px; }
     }
   </style>
 </head>
@@ -201,7 +247,15 @@
       </div>
 
       <div class="card">
-        <h2>③ 要做幾題？</h2>
+        <h2>③ 題目怎麼排？</h2>
+        <div class="options two" data-group="layout">
+          <button class="opt selected" data-value="h"><span class="big">3+4=?</span>橫式</button>
+          <button class="opt" data-value="v"><span class="big" style="line-height:1.05;font-size:1.05rem">&nbsp;&nbsp;12<br>+&nbsp;&nbsp;9<br>―――</span>直式</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>④ 要做幾題？</h2>
         <div class="options" data-group="count">
           <button class="opt" data-value="5"><span class="big">5</span>題</button>
           <button class="opt selected" data-value="10"><span class="big">10</span>題</button>
@@ -223,12 +277,16 @@
 
       <div class="card question-card">
         <div class="q-num" id="q-num">第 1 題</div>
-        <div class="equation">
+        <div class="equation" id="h-eq">
           <span id="num-a">3</span>
           <span class="op" id="op">+</span>
           <span id="num-b">4</span>
           <span>=</span>
           <span class="answer-box" id="answer-box">?</span>
+        </div>
+        <div id="v-eq" hidden>
+          <div class="vertical" id="vertical"></div>
+          <div class="v-hint" id="v-hint"></div>
         </div>
         <div class="visual" id="visual"></div>
       </div>
@@ -278,7 +336,7 @@
 
   <script>
     // ---------- 設定 ----------
-    const settings = { mode: 'add', level: 10, count: 10 };
+    const settings = { mode: 'add', level: 10, layout: 'h', count: 10 };
 
     const PRAISE = ['答對了！你好棒！🎉', '太厲害了！⭐', '完全正確！👏', '好聰明喔！💡', '讚啦！繼續加油！💪', '答對囉！🥳'];
     const RETRY  = ['差一點點，再想想看 🤔', '沒關係，再試一次！💪', '加油，你可以的！🌈'];
@@ -298,7 +356,7 @@
         group.querySelectorAll('.opt').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         const key = group.dataset.group;
-        settings[key] = key === 'mode' ? btn.dataset.value : Number(btn.dataset.value);
+        settings[key] = (key === 'mode' || key === 'layout') ? btn.dataset.value : Number(btn.dataset.value);
         sound('tap');
         showBest();
       });
@@ -345,14 +403,95 @@
       $('num-a').textContent = q.a;
       $('num-b').textContent = q.b;
       $('op').textContent = q.op === '+' ? '+' : '−';
-      $('answer-box').className = 'answer-box';
-      $('answer-box').textContent = '?';
+      state.marks = {};
+      $('h-eq').hidden = settings.layout === 'v';
+      $('v-eq').hidden = settings.layout !== 'v';
+      $('v-hint').textContent = q.op === '+'
+        ? '從最右邊的個位數開始填 👉 滿 10 要進位，可以點上面的小格子記下「1」'
+        : '從最右邊的個位數開始填 👉 不夠減就跟左邊借 1，點上面的數字可以做記號';
+      showAnswer('');
       $('feedback').textContent = '';
       $('feedback').className = 'feedback';
       $('progress-bar').style.width = `${(state.index / settings.count) * 100}%`;
       $('star-count').textContent = state.stars;
       renderVisual(q);
     }
+
+    // ---------- 答案顯示（橫式 / 直式共用） ----------
+    // status: '' | 'correct' | 'wrong'
+    function showAnswer(status) {
+      if (settings.layout === 'v') { renderVertical(status); return; }
+      const box = $('answer-box');
+      box.className = 'answer-box' + (status ? ' ' + status : '');
+      box.textContent = state.input === '' ? '?' : state.input;
+    }
+
+    const digitsOf = (n) => String(n).split('').reverse().map(Number); // 個位數在前
+    const colsOf = (q) => Math.max(String(q.a).length, String(q.b).length, String(q.answer).length);
+
+    function renderVertical(status) {
+      const q = state.questions[state.index];
+      const cols = colsOf(q);
+      const A = digitsOf(q.a), B = digitsOf(q.b);
+      const box = $('vertical');
+      box.style.gridTemplateColumns = `repeat(${cols + 1}, var(--cell))`;
+      let html = '';
+
+      // 第 1 列：進位 / 借位小格
+      html += '<div class="cell helper"></div>';
+      for (let i = cols - 1; i >= 0; i--) {
+        if (q.op === '+') {
+          // 個位數不會有進位進來，最左邊一欄進位也可能出現（例如 9+3）
+          if (i >= 1) html += `<button class="cell helper ${state.marks[i] ? 'on' : ''}" data-carry="${i}" aria-label="進位記號">${state.marks[i] ? '1' : ''}</button>`;
+          else html += '<div class="cell helper"></div>';
+        } else {
+          const borrowed = state.marks[i] && A[i] !== undefined;
+          html += `<div class="cell helper">${borrowed ? (A[i] === 0 ? 9 : A[i] - 1) : ''}</div>`;
+        }
+      }
+
+      // 第 2 列：被加數 / 被減數
+      html += '<div class="cell"></div>';
+      for (let i = cols - 1; i >= 0; i--) {
+        const d = A[i];
+        if (d === undefined) { html += '<div class="cell"></div>'; continue; }
+        const badge = (q.op === '-' && state.marks[i + 1]) ? '<span class="ten-badge">+10</span>' : '';
+        if (q.op === '-' && i >= 1) {
+          html += `<div class="cell">${badge}<button class="digit-btn ${state.marks[i] ? 'struck' : ''}" data-borrow="${i}" aria-label="借位">${d}</button></div>`;
+        } else {
+          html += `<div class="cell">${badge}${d}</div>`;
+        }
+      }
+
+      // 第 3 列：運算符號 + 加數 / 減數
+      html += `<div class="cell op-cell">${q.op === '+' ? '+' : '−'}</div>`;
+      for (let i = cols - 1; i >= 0; i--) html += `<div class="cell">${B[i] !== undefined ? B[i] : ''}</div>`;
+
+      html += '<div class="line"></div>';
+
+      // 第 4 列：答案格，從個位數往左填
+      html += '<div class="cell"></div>';
+      const inp = state.input;
+      for (let i = cols - 1; i >= 0; i--) {
+        const ch = inp.length > i ? inp[inp.length - 1 - i] : '';
+        let cls = 'cell vbox';
+        if (status) cls += ' ' + status;
+        else if (!state.locked && i === inp.length) cls += ' active';
+        html += `<div class="${cls}">${ch}</div>`;
+      }
+
+      box.innerHTML = html;
+    }
+
+    $('vertical').addEventListener('click', (e) => {
+      if (!state || state.locked) return;
+      const t = e.target.closest('[data-carry],[data-borrow]');
+      if (!t) return;
+      const i = Number(t.dataset.carry ?? t.dataset.borrow);
+      state.marks[i] = !state.marks[i];
+      sound('tap');
+      renderVertical('');
+    });
 
     // 10 以內的題目用圖案幫忙數數
     function renderVisual(q) {
@@ -372,32 +511,36 @@
     function press(key) {
       if (!state || state.locked) return;
       if (key === 'del') {
-        state.input = state.input.slice(0, -1);
+        // 直式是從右往左填，所以刪掉最左邊（最後填的）那一位
+        state.input = settings.layout === 'v' ? state.input.slice(1) : state.input.slice(0, -1);
         sound('tap');
       } else if (key === 'ok') {
         if (state.input === '') return;
         checkAnswer();
         return;
+      } else if (settings.layout === 'v') {
+        // 直式：從個位數開始往左填
+        const q = state.questions[state.index];
+        if (state.input.length >= colsOf(q)) return;
+        state.input = key + state.input;
+        sound('tap');
       } else {
         if (state.input.length >= 3) return;
         state.input = (state.input === '0' ? '' : state.input) + key;
         sound('tap');
       }
-      const box = $('answer-box');
-      box.className = 'answer-box';
-      box.textContent = state.input === '' ? '?' : state.input;
+      showAnswer('');
     }
 
     function checkAnswer() {
       const q = state.questions[state.index];
       const value = Number(state.input);
-      const box = $('answer-box');
       const fb = $('feedback');
       q.tries++;
 
       if (value === q.answer) {
         state.locked = true;
-        box.className = 'answer-box correct';
+        showAnswer('correct');
         fb.className = 'feedback good';
         fb.textContent = pick(PRAISE);
         if (q.tries === 1) { state.stars++; state.correctFirst++; }
@@ -406,7 +549,7 @@
         setTimeout(nextQuestion, 1100);
       } else {
         if (q.tries === 1) state.wrongs.push({ ...q, yours: value });
-        box.className = 'answer-box wrong';
+        showAnswer('wrong');
         fb.className = 'feedback bad';
         sound('bad');
         if (q.tries >= 2) {
@@ -414,14 +557,14 @@
           state.locked = true;
           fb.textContent = `正確答案是 ${q.answer}，下一題加油！`;
           setTimeout(() => {
-            box.className = 'answer-box correct';
-            box.textContent = q.answer;
+            state.input = String(q.answer);
+            showAnswer('correct');
           }, 400);
           setTimeout(nextQuestion, 2200);
         } else {
           fb.textContent = pick(RETRY);
           state.input = '';
-          setTimeout(() => { if (!state.locked) { box.className = 'answer-box'; box.textContent = '?'; } }, 700);
+          setTimeout(() => { if (state && !state.locked) showAnswer(''); }, 700);
         }
       }
     }
@@ -470,7 +613,7 @@
     }
 
     // ---------- 最佳紀錄 ----------
-    const bestKey = () => `mathgame-best-${settings.mode}-${settings.level}-${settings.count}`;
+    const bestKey = () => `mathgame-best-${settings.mode}-${settings.level}-${settings.layout}-${settings.count}`;
     function saveBest() {
       try {
         const prev = Number(localStorage.getItem(bestKey()) || 0);
