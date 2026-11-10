@@ -432,6 +432,7 @@
         <div class="spacer"></div>
         <div class="pill" id="coin-pill">🪙 <span id="coin-count">0</span></div>
         <div class="pill" id="star-pill">⭐ <span id="star-count">0</span></div>
+        <button class="icon-btn" id="music-btn" aria-label="背景音樂開關" aria-pressed="true">🎵</button>
         <button class="icon-btn" id="fs-btn" aria-label="切換全螢幕">⛶</button>
       </div>
 
@@ -1047,6 +1048,7 @@
       $('focus-tip').hidden = true;
       focusGame();
       toast(`🗺️ 新地圖產生了！${settings.name}從小村莊出發！`, 2600);
+      Music.play('explore');
       state.raf = requestAnimationFrame(loop);
     }
 
@@ -1701,6 +1703,7 @@
         renderHp(ent);
         state.q = makeQuestion('battle', ent.beast.name);
         sound('roar');
+        Music.play('battle');
         // 野獸大吼、雙方之間跳出 ⚔️
         ent.introT = performance.now();
         const pc = center(p), ec = center(ent);
@@ -2126,6 +2129,7 @@
         $('controls').hidden = false;
         $('game-screen').classList.remove('encountering');
         focusGame();   // 「繼續冒險」按鈕藏起來後，焦點回到遊戲畫面，方向鍵馬上能用
+        Music.play('explore');
         try { speechSynthesis.cancel(); } catch (e) {}
       } else {
         state.q = makeQuestion('battle', ent.beast.name);
@@ -2139,6 +2143,7 @@
     function arriveCastle() {
       state.finished = true;
       heldDirs.length = 0;
+      Music.stop();
       sound('win');
       draw(performance.now(), 0);
       setTimeout(showResult, 500);
@@ -2214,6 +2219,7 @@
     });
 
     function stopGame() {
+      Music.stop();
       if (state) { cancelAnimationFrame(state.raf); state.finished = true; }
       state = null;
       heldDirs.length = 0;
@@ -2247,9 +2253,191 @@
     }
 
     let audioCtx = null;
-    function sound(type) {
+    function getAudio() {
       try {
         audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended' && !document.hidden) audioCtx.resume().catch(() => {});
+        return audioCtx;
+      } catch (e) { return null; }
+    }
+
+    // =====================================================================
+    // 背景音樂：用瀏覽器即時合成，不需要音檔
+    // 探索：C 大調、每分鐘 100 拍，輕快
+    // 戰鬥：A 小調、每分鐘 150 拍，加上鼓聲，比較緊張
+    // =====================================================================
+    const noteFreq = (n) => {
+      const m = /^([A-G])(#|b)?(\d)$/.exec(n);
+      const semi = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+      return 440 * Math.pow(2, (12 * (Number(m[3]) + 1) + semi - 69) / 12);
+    };
+    const notes = (str) => str.trim().split(/\s+/).map(t => (t === '.' ? null : noteFreq(t)));
+
+    const SONGS = {
+      explore: {
+        bpm: 100,
+        // 每一格是八分音符，一小節 8 格，共 8 小節（C G Am F | C G F G-C）
+        mel: notes(`
+          E5 . G5 . A5 G5 E5 .   D5 . G5 . B4 . D5 .   C5 . E5 A5 G5 . E5 .   F5 E5 D5 . C5 . . .
+          E5 . G5 . C6 . G5 .    B4 . D5 G5 F5 . D5 .  A5 . G5 F5 E5 . D5 .   D5 . E5 D5 C5 . . .`),
+        bass: notes(`
+          C3 . G3 . C3 . G3 .    G2 . D3 . G2 . D3 .   A2 . E3 . A2 . E3 .    F2 . C3 . F2 . C3 .
+          C3 . G3 . C3 . G3 .    G2 . D3 . G2 . D3 .   F2 . C3 . F2 . C3 .    G2 . D3 . C3 . . .`),
+        melWave: 'triangle', melVol: .11, melLen: .85,
+        bassWave: 'triangle', bassVol: .13, bassLen: 1.6,
+        drums: false,
+      },
+      battle: {
+        bpm: 150,
+        // Am F G E 的循環，旋律一直往前推
+        mel: notes(`
+          A4 C5 E5 C5 A4 C5 E5 A5   F4 A4 C5 A4 F4 A4 C5 F5   G4 B4 D5 B4 G4 B4 D5 G5   E5 . B4 . G#4 . B4 .
+          A5 . G5 E5 A5 . G5 E5     F5 . E5 C5 F5 . E5 C5     D5 E5 F5 G5 F5 E5 D5 B4   E5 . . . G#4 . B4 .`),
+        bass: notes(`
+          A2 A2 A3 A2 A2 A2 A3 A2   F2 F2 F3 F2 F2 F2 F3 F2   G2 G2 G3 G2 G2 G2 G3 G2   E2 E2 E3 E2 E2 E2 E3 E2
+          A2 A2 A3 A2 A2 A2 A3 A2   F2 F2 F3 F2 F2 F2 F3 F2   G2 G2 G3 G2 G2 G2 G3 G2   E2 E2 E3 E2 E2 E2 E3 E2`),
+        melWave: 'square', melVol: .045, melLen: .7,
+        bassWave: 'sawtooth', bassVol: .06, bassLen: .8,
+        drums: true,
+      },
+    };
+
+    const Music = (() => {
+      let enabled = true;
+      try { enabled = localStorage.getItem('knight-music') !== 'off'; } catch (e) {}
+      let ctx = null, out = null, songGain = null, song = null, name = null;
+      let step = 0, nextT = 0, timer = null, wanted = null, noiseBuf = null, stepsPlayed = 0;
+
+      function ensure() {
+        ctx = getAudio();
+        if (!ctx) return false;
+        if (!out) {
+          out = ctx.createGain();
+          out.gain.value = .55;
+          out.connect(ctx.destination);
+          // 打擊樂用的白噪音
+          noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .3, ctx.sampleRate);
+          const d = noiseBuf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        }
+        return true;
+      }
+
+      function tone(freq, t, dur, wave, vol, dest, lowpass) {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = wave;
+        o.frequency.value = freq;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + .012);
+        g.gain.exponentialRampToValueAtTime(.0005, t + dur);
+        if (lowpass) {
+          const f = ctx.createBiquadFilter();
+          f.type = 'lowpass'; f.frequency.value = lowpass;
+          o.connect(f).connect(g);
+        } else o.connect(g);
+        g.connect(dest);
+        o.start(t); o.stop(t + dur + .02);
+      }
+
+      function hit(t, kind, dest) {
+        if (kind === 'kick') {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.frequency.setValueAtTime(150, t);
+          o.frequency.exponentialRampToValueAtTime(45, t + .12);
+          g.gain.setValueAtTime(.35, t);
+          g.gain.exponentialRampToValueAtTime(.001, t + .15);
+          o.connect(g).connect(dest);
+          o.start(t); o.stop(t + .16);
+          return;
+        }
+        const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        src.buffer = noiseBuf;
+        f.type = kind === 'hat' ? 'highpass' : 'bandpass';
+        f.frequency.value = kind === 'hat' ? 7000 : 1800;
+        const vol = kind === 'hat' ? .05 : .12, len = kind === 'hat' ? .04 : .1;
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(.001, t + len);
+        src.connect(f).connect(g).connect(dest);
+        src.start(t); src.stop(t + len + .02);
+      }
+
+      function scheduleStep(i, t) {
+        const s = song, dur = 60 / s.bpm / 2, dest = songGain;
+        if (s.mel[i]) tone(s.mel[i], t, dur * s.melLen * 1.6, s.melWave, s.melVol, dest, s.melWave === 'square' ? 2600 : 0);
+        if (s.bass[i]) tone(s.bass[i], t, dur * s.bassLen, s.bassWave, s.bassVol, dest, s.bassWave === 'sawtooth' ? 700 : 0);
+        if (s.drums) {
+          const beat = i % 8;
+          if (beat === 0 || beat === 4) hit(t, 'kick', dest);
+          if (beat === 2 || beat === 6) hit(t, 'snare', dest);
+          if (i % 2 === 1) hit(t, 'hat', dest);
+        }
+        stepsPlayed++;
+      }
+
+      // 每 25 毫秒看一下，把接下來 0.12 秒要播的音先排好，節奏才會穩
+      function tick() {
+        if (!song || !ctx) return;
+        if (nextT < ctx.currentTime - .5) nextT = ctx.currentTime + .05; // 分頁切回來時重新對時
+        while (nextT < ctx.currentTime + .12) {
+          scheduleStep(step, nextT);
+          nextT += 60 / song.bpm / 2;
+          step = (step + 1) % song.mel.length;
+        }
+      }
+
+      function fadeOut() {
+        if (!songGain) return;
+        const g = songGain, now = ctx.currentTime;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(g.gain.value, now);
+        g.gain.linearRampToValueAtTime(0, now + .45);
+        setTimeout(() => { try { g.disconnect(); } catch (e) {} }, 700);
+        songGain = null;
+      }
+
+      return {
+        play(which) {
+          wanted = which;
+          if (!enabled || !ensure()) return;
+          if (name === which && songGain) return;
+          fadeOut();
+          song = SONGS[which]; name = which; step = 0;
+          songGain = ctx.createGain();
+          songGain.gain.setValueAtTime(0, ctx.currentTime);
+          songGain.gain.linearRampToValueAtTime(1, ctx.currentTime + .6);
+          songGain.connect(out);
+          nextT = ctx.currentTime + .08;
+          if (!timer) timer = setInterval(tick, 25);
+        },
+        stop(keepWanted) {
+          if (!keepWanted) wanted = null;
+          if (ctx) fadeOut();
+          song = null; name = null;
+          clearInterval(timer); timer = null;
+        },
+        toggle() {
+          enabled = !enabled;
+          try { localStorage.setItem('knight-music', enabled ? 'on' : 'off'); } catch (e) {}
+          if (enabled) { if (wanted) this.play(wanted); }
+          else this.stop(true);
+          return enabled;
+        },
+        get enabled() { return enabled; },
+        debug() { return { playing: name, enabled, stepsPlayed, wanted }; },
+      };
+    })();
+
+    function updateMusicBtn() {
+      const b = $('music-btn');
+      b.textContent = Music.enabled ? '🎵' : '🔇';
+      b.setAttribute('aria-pressed', String(Music.enabled));
+      b.title = Music.enabled ? '關掉背景音樂' : '打開背景音樂';
+    }
+
+    function sound(type) {
+      try {
+        audioCtx = getAudio();
+        if (!audioCtx) return;
         const presets = {
           tap:   { wave: 'sine', notes: [[600, 0.05]] },
           step:  { wave: 'triangle', vol: 0.04, notes: [[170, 0.04]] },
@@ -2385,6 +2573,17 @@
       showHint();
     });
     $('speak-btn').addEventListener('click', speak);
+    $('music-btn').addEventListener('click', () => {
+      const on = Music.toggle();
+      updateMusicBtn();
+      toast(on ? '🎵 背景音樂打開了' : '🔇 背景音樂關掉了', 1200);
+    });
+    updateMusicBtn();
+    document.addEventListener('visibilitychange', () => {
+      if (!audioCtx) return;
+      if (document.hidden) audioCtx.suspend().catch(() => {});
+      else audioCtx.resume().catch(() => {});
+    });
     $('say-word-btn').addEventListener('click', sayWord);
     $('letterpad').addEventListener('click', (e) => {
       const b = e.target.closest('.key');
