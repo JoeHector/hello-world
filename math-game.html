@@ -64,6 +64,24 @@
     .options.two { grid-template-columns: repeat(2, 1fr); }
     .options.four { grid-template-columns: repeat(4, 1fr); }
     @media (max-width: 400px) { .options.four { grid-template-columns: repeat(2, 1fr); } }
+    /* 窄手機：上方狀態列的按鈕縮小一點，全部放得下 */
+    @media (max-width: 420px) {
+      .hud { gap: 5px; }
+      .hud .icon-btn { width: 38px; height: 38px; font-size: 1rem; border-radius: 12px; }
+      .hud .pill { padding: 4px 6px; font-size: .85rem; border-radius: 12px; }
+      .hud .pill.hearts { font-size: .72rem; letter-spacing: 0; }
+    }
+    .hearts-short { display: none; }
+    @media (max-width: 380px) {
+      .hearts-full { display: none; }
+      .hearts-short { display: inline; }
+      .hud .pill.hearts { font-size: .85rem; }
+    }
+    @media (max-width: 340px) {
+      .hud { gap: 3px; }
+      .hud .icon-btn { width: 34px; height: 34px; font-size: .9rem; border-width: 2px; }
+      .hud .pill { padding: 3px 5px; font-size: .78rem; border-width: 2px; }
+    }
     .opt {
       border: 3px solid var(--line); background: #fff; border-radius: 14px; padding: 10px 4px;
       font-size: 1rem; font-weight: bold; color: var(--ink); cursor: pointer; font-family: inherit; transition: transform .1s;
@@ -287,6 +305,7 @@
 
     .hint { border-top: 3px dashed var(--line); padding-top: 12px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
     .hint-label { color: var(--muted); font-weight: bold; }
+    .hint-repeat { color: var(--blue-dark); font-weight: bold; font-size: 1.02rem; line-height: 1.6; font-variant-numeric: tabular-nums; }
     .equation { font-size: 2.1rem; font-weight: bold; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
     .equation .op { color: var(--accent); }
 
@@ -382,10 +401,11 @@
 
       <div class="card">
         <h2>① 要練習什麼？</h2>
-        <div class="options" data-group="mode">
+        <div class="options four" data-group="mode">
           <button class="opt selected" data-value="add"><span class="big">➕</span>加法</button>
           <button class="opt" data-value="sub"><span class="big">➖</span>減法</button>
-          <button class="opt" data-value="mix"><span class="big">🔀</span>混合</button>
+          <button class="opt" data-value="mul"><span class="big">✖️</span>乘法<small>個位數</small></button>
+          <button class="opt" data-value="mix"><span class="big">🔀</span>混合<small>加減乘</small></button>
         </div>
       </div>
 
@@ -496,6 +516,7 @@
             <div class="hint" id="hint" hidden>
               <div class="hint-label" id="hint-label">💡 可以這樣列式算算看</div>
               <div class="equation" id="hint-h"></div>
+            <div class="hint-repeat" id="hint-repeat" hidden></div>
               <div id="hint-v" hidden>
                 <div class="vertical" id="vertical"></div>
                 <div class="v-hint" id="v-hint"></div>
@@ -623,6 +644,27 @@
           text: (a, b) => `小安和小樂到海邊比賽撿貝殼。小安撿了 <b>${a}</b> 個貝殼。小樂撿了 <b>${b}</b> 個貝殼。${ASK('小安比小樂多撿幾個貝殼？')}`,
           win: '兩個人都說你算得好快！' },
       ],
+      // 乘法：a 是「每一份有幾個」，b 是「有幾份」，列式 a × b
+      '×': [
+        { icon: '🐓', title: '數雞蛋', unit: '顆',
+          text: (a, b) => `農場的母雞每天都會下很多蛋。農夫把蛋放進籃子裡，每個籃子裝 <b>${a}</b> 顆。今天一共裝滿了 <b>${b}</b> 個籃子。${ASK('今天一共收了幾顆雞蛋？')}`,
+          win: '農夫送你一顆熱騰騰的水煮蛋！' },
+        { icon: '👩‍🌾', title: '果園的蘋果樹', unit: '顆',
+          text: (a, b) => `果園裡種了一排小蘋果樹，每棵都長得一樣大。每棵樹上結了 <b>${a}</b> 顆蘋果。果園裡一共有 <b>${b}</b> 棵這樣的樹。${ASK('這些樹上一共有幾顆蘋果？')}`,
+          win: '果農請你吃了一大盤蘋果！' },
+        { icon: '🐞', title: '葉子上的瓢蟲', unit: '隻',
+          text: (a, b, n) => `${n}在森林裡看到好多片大葉子。每片葉子上都停了 <b>${a}</b> 隻瓢蟲。${n}一共數了 <b>${b}</b> 片葉子。${ASK('葉子上一共有幾隻瓢蟲？')}`,
+          win: '瓢蟲們排成一個愛心送給你！' },
+        { icon: '🧑‍🍳', title: '烤箱裡的餅乾', unit: '片',
+          text: (a, b) => `麵包店的老闆正在烤小餅乾。每個烤盤上放 <b>${a}</b> 片餅乾。烤箱裡一共放了 <b>${b}</b> 個烤盤。${ASK('烤箱裡一共有幾片餅乾？')}`,
+          win: '老闆讓你帶一包餅乾上路！' },
+        { icon: '🚣', title: '河邊的渡船', unit: '人',
+          text: (a, b) => `河邊的船夫要載旅客過河。每艘小船可以坐 <b>${a}</b> 個人。今天一共開出了 <b>${b}</b> 艘小船，每艘都坐滿了。${ASK('一共載了幾個人過河？')}`,
+          win: '船夫讓你免費坐船過河！' },
+        { icon: '🧙‍♀️', title: '魔法石口袋', unit: '顆',
+          text: (a, b) => `女巫正在準備明天要用的魔法石。她在每個小袋子裡放 <b>${a}</b> 顆魔法石。她一共準備了 <b>${b}</b> 個小袋子。${ASK('她一共準備了幾顆魔法石？')}`,
+          win: '女巫送你一顆會發光的魔法石！' },
+      ],
     };
 
     // 題庫：戰鬥
@@ -642,6 +684,13 @@
         { unit: '顆', text: (a, b, n, B) => `${B}偷偷溜進村莊，偷走了好多蘋果。被偷走的蘋果一共有 <b>${a}</b> 顆。${n}已經搶回 <b>${b}</b> 顆了。${ASK('還有幾顆蘋果要搶回來？')}` },
         { unit: '塊', text: (a, b, n, B) => `${B}用大石頭把小路整個堵住了。路上一共有 <b>${a}</b> 塊大石頭。${n}用力推開了 <b>${b}</b> 塊。${ASK('還剩下幾塊石頭擋路？')}` },
         { unit: '點', text: (a, b, n, B) => `${B}伸出爪子，朝${n}的盾牌抓過去。盾牌原本可以擋 <b>${a}</b> 點傷害。被抓了一下以後，少了 <b>${b}</b> 點。${ASK('盾牌現在還可以擋幾點傷害？')}` },
+      ],
+      '×': [
+        { unit: '支', text: (a, b, n, B) => `${n}拉開弓，對${B}連續射出好幾輪箭。每一輪都射出 <b>${a}</b> 支箭。${n}一共射了 <b>${b}</b> 輪。${ASK(`${n}一共射出幾支箭？`)}` },
+        { unit: '顆', text: (a, b, n, B) => `${B}朝${n}丟出好幾堆石頭。每一堆都有 <b>${a}</b> 顆石頭。牠一共丟了 <b>${b}</b> 堆。${ASK(`${B}一共丟出幾顆石頭？`)}` },
+        { unit: '點', text: (a, b, n, B) => `${n}施展分身魔法，對${B}發動攻擊。每一個分身可以造成 <b>${a}</b> 點傷害。${n}一共變出了 <b>${b}</b> 個分身。${ASK('所有分身一共造成幾點傷害？')}` },
+        { unit: '隻', text: (a, b, n, B) => `${B}吹了一聲口哨，叫來好多小幫手。小幫手分成好幾群，每一群有 <b>${a}</b> 隻。一共來了 <b>${b}</b> 群。${ASK(`${B}一共叫來幾隻小幫手？`)}` },
+        { unit: '個', text: (a, b, n, B) => `${B}在小路上偷偷挖了陷阱。陷阱排成好幾排，每一排有 <b>${a}</b> 個。路上一共有 <b>${b}</b> 排。${ASK('路上一共有幾個陷阱要小心？')}` },
       ],
     };
 
@@ -706,7 +755,7 @@
     const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
     const shuffle = (arr) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    const opSign = (op) => (op === '+' ? '+' : '−');
+    const opSign = (op) => (op === '+' ? '+' : op === '×' ? '×' : '−');
     const stripTags = (html) => html.replace(/<[^>]+>/g, '');
     const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -752,11 +801,17 @@
     // =====================================================================
     // 出題
     // =====================================================================
-    const pickOp = () => settings.mode === 'mix' ? pick(['+', '-']) : (settings.mode === 'add' ? '+' : '-');
+    const pickOp = () => ({ add: '+', sub: '-', mul: '×' }[settings.mode] || pick(['+', '-', '×']));
 
     function makeNumbers(op) {
       const L = settings.level;
       let a, b;
+      if (op === '×') {
+        // 個位數乘法：簡單模式先從 2～5 的乘法表開始
+        a = L === 10 ? rand(2, 5) : rand(2, 9);
+        b = rand(2, 9);
+        return { a, b, answer: a * b };
+      }
       if (op === '+') {
         if (L === 200) { a = rand(25, 175); b = rand(5, 200 - a); }        // 和最多 200
         else if (L === 100) { a = rand(10, 85); b = rand(3, 100 - a); }
@@ -1642,7 +1697,9 @@
     // HUD
     // =====================================================================
     function updateHud() {
-      $('heart-pill').textContent = '❤️'.repeat(state.hearts) + '🤍'.repeat(MAX_HEARTS - state.hearts);
+      // 一般顯示一排愛心；很窄的手機改成「❤️ ×5」
+      $('heart-pill').innerHTML = `<span class="hearts-full">${'❤️'.repeat(state.hearts)}${'🤍'.repeat(MAX_HEARTS - state.hearts)}</span><span class="hearts-short">❤️ ×${state.hearts}</span>`;
+      $('heart-pill').setAttribute('aria-label', `體力 ${state.hearts} / ${MAX_HEARTS}`);
       $('coin-count').textContent = state.coins;
       $('star-count').textContent = state.stars;
       $('goals').textContent = `🧑‍🌾 ${state.npcsDone}/${state.npcTotal}　⚔️ ${state.beastsDone}/${state.beastTotal}`;
@@ -1798,6 +1855,7 @@
         $('hint-h').hidden = false;
         $('hint-v').hidden = true;
         $('hint-h').innerHTML = `<span class="hint-word">${q.word[0]}${' _'.repeat(q.word.length - 1)}</span>`;
+        $('hint-repeat').hidden = true;
         $('say-word-btn').hidden = false;
         sayWord();
         clearInput();
@@ -1809,9 +1867,15 @@
       $('hint-h').hidden = settings.layout === 'v';
       $('hint-v').hidden = settings.layout !== 'v';
       $('hint-h').innerHTML = `<span>${q.a}</span><span class="op">${opSign(q.op)}</span><span>${q.b}</span><span>=</span><span>?</span>`;
+      // 乘法再補一句「連加」的說明，例如 4 × 3 就是 4 + 4 + 4
+      const repeat = q.op === '×' ? `${q.a} × ${q.b} 就是 ${q.b} 個 ${q.a} 加起來：${Array(q.b).fill(q.a).join(' + ')}` : '';
+      $('hint-repeat').textContent = repeat;
+      $('hint-repeat').hidden = !repeat;
       $('v-hint').textContent = q.op === '+'
         ? '答案從最右邊的個位數開始填。滿 10 要進位，可以點上面的小格子記下「1」。'
-        : '答案從最右邊的個位數開始填。不夠減就跟左邊借 1，點上面的數字可以做記號。';
+        : q.op === '×'
+          ? '答案從最右邊的個位數開始填。想一想九九乘法表，算出來是兩位數的話，十位數寫在左邊。'
+          : '答案從最右邊的個位數開始填。不夠減就跟左邊借 1，點上面的數字可以做記號。';
       state.input = '';
       showAnswer('');
       // 把面板往下捲，讓算式露出來
