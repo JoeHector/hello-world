@@ -1445,6 +1445,7 @@
       const p = state.p;
       const [dx, dy] = DIRS[dir];
       if (dx) p.face = dx;
+      p.facing = dir;
       const nx = p.x + dx, ny = p.y + dy;
 
       const ent = blockerAt(nx, ny);
@@ -2004,7 +2005,7 @@
           if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
         });
         if (groundTex) groundTex.dispose();
-        if (knightTex) knightTex.dispose();
+        knight = null;
       }
 
       const lambert = (color) => new THREE.MeshLambertMaterial({ color });
@@ -2147,34 +2148,141 @@
           sprites.set(e, { grp, sp, ring, base, chestOpen: false });
         });
 
-        // 小騎士
-        knightCanvas = document.createElement('canvas');
-        knightCanvas.width = 160; knightCanvas.height = Math.round(160 / KNIGHT_ASPECT);
-        knightTex = new THREE.CanvasTexture(knightCanvas);
-        knight = new THREE.Sprite(new THREE.SpriteMaterial({ map: knightTex, transparent: true, depthWrite: false }));
-        knight.center.set(.5, .05);
-        knight.scale.set(1.1 * KNIGHT_ASPECT, 1.1, 1);
+        // 小騎士：立體模型，依照裝備組合
+        knight = null;
+        knightAngle = null;
         knightShadow = new THREE.Mesh(new THREE.PlaneGeometry(.8, .8), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false }));
         knightShadow.rotation.x = -Math.PI / 2;
-        scene.add(knight, knightShadow);
+        scene.add(knightShadow);
       }
 
-      // 換裝備或轉身時，重畫騎士的貼圖
-      function updateKnightTexture() {
-        const p = state.p;
-        const img = knightImage(state.equip);
-        if (!(img.complete && img.naturalWidth)) return;
-        const key = img.src.length + '|' + state.equip.helmet + state.equip.cape + state.equip.weapon + '|' + (p.face < 0 ? 'L' : 'R');
-        if (key === knightKey) return;
-        knightKey = key;
-        const g = knightCanvas.getContext('2d');
-        g.clearRect(0, 0, knightCanvas.width, knightCanvas.height);
-        g.save();
-        if (p.face < 0) { g.translate(knightCanvas.width, 0); g.scale(-1, 1); }
-        g.drawImage(img, 0, 0, knightCanvas.width, knightCanvas.height);
-        g.restore();
-        knightTex.needsUpdate = true;
+      // ---------- 立體小騎士 ----------
+      // 模型面向 +Z；右手（拿武器）在 -X，左手（拿盾牌）在 +X。高度大約 1 格。
+      let knightAngle = null;
+      function buildKnightModel(eq) {
+        const H = GEAR[eq.helmet].look, C = eq.cape ? GEAR[eq.cape].look : null, Wp = GEAR[eq.weapon];
+        const mats = [];   // 會被打中變紅的材質
+        const mat = (color, opts = {}) => { const m = new THREE.MeshLambertMaterial({ color, ...opts }); if (!opts.emissive) mats.push(m); return m; };
+        const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+        const root = new THREE.Group();     // 位置、轉向
+        const body = new THREE.Group();     // 前後傾斜
+        root.add(body);
+
+        // 腳：從臀部轉動
+        const legMat = mat('#6b5640'), bootMat = mat('#3a2e22');
+        const mkLeg = (x) => {
+          const pivot = new THREE.Group(); pivot.position.set(x, .3, 0);
+          const leg = box(.11, .22, .11, legMat); leg.position.y = -.11;
+          const boot = box(.13, .08, .17, bootMat); boot.position.set(0, -.26, .02);
+          pivot.add(leg, boot); body.add(pivot); return pivot;
+        };
+        const legL = mkLeg(.075), legR = mkLeg(-.075);
+
+        // 身體、腰帶
+        const torso = box(.34, .3, .22, mat('#3d8fd6')); torso.position.y = .46;
+        const belt = box(.35, .045, .23, mat('#f5b82e')); belt.position.y = .36;
+        body.add(torso, belt);
+
+        // 披風：掛在背後
+        if (C) {
+          const capeMat = mat(C.fill, { side: THREE.DoubleSide });
+          const cape = box(.36, .52, .02, capeMat); cape.position.set(0, .36, -.14); cape.rotation.x = .18;
+          body.add(cape);
+          const collar = box(.38, .05, .26, capeMat); collar.position.y = .6; body.add(collar);
+          if (C.trim) { const trim = box(.37, .04, .03, mat(C.trim)); trim.position.set(0, .12, -.185); trim.rotation.x = .18; body.add(trim); }
+          if (C.stars) {
+            const starMat = new THREE.MeshBasicMaterial({ color: '#fff6c2' });
+            [[-.1, .45], [.08, .33], [-.04, .22], [.11, .5]].forEach(([x, y]) => { const st = box(.03, .03, .01, starMat); st.position.set(x, y, -.16 - (.6 - y) * .18); body.add(st); });
+          }
+        }
+
+        // 頭盔
+        const headMat = mat(H.fill);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(.15, 14, 10), headMat); head.position.y = .76;
+        const visor = box(.17, .035, .03, mat('#3a2e22')); visor.position.set(0, .77, .135);
+        body.add(head, visor);
+        if (H.plume) {
+          const plume = new THREE.Mesh(new THREE.ConeGeometry(H.tall ? .06 : .05, H.tall ? .3 : .18, 6), mat(H.plume));
+          plume.position.set(0, H.tall ? .98 : .93, H.tall ? -.05 : 0); plume.rotation.x = H.tall ? -.5 : -.3;
+          body.add(plume);
+        }
+        if (H.rivets) {
+          const ridge = box(.03, .06, .3, mat('#a8652f')); ridge.position.y = .9; body.add(ridge);
+          const rivet = mat('#7a4a2a');
+          [[-.13, .78], [.13, .78]].forEach(([x, y]) => { const r = new THREE.Mesh(new THREE.SphereGeometry(.018, 6, 4), rivet); r.position.set(x, y, .05); body.add(r); });
+        }
+        if (H.crown) {
+          const gold = mat('#f5c84a');
+          const band = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .05, 12, 1, true), gold); band.position.y = .89; body.add(band);
+          for (let i = 0; i < 5; i++) {
+            const a = i / 5 * Math.PI * 2;
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(.035, .1, 4), gold);
+            spike.position.set(Math.sin(a) * .12, .96, Math.cos(a) * .12); body.add(spike);
+          }
+          const gem = new THREE.Mesh(new THREE.SphereGeometry(.03, 8, 6), new THREE.MeshLambertMaterial({ color: '#e0485a', emissive: '#5a0010' }));
+          gem.position.set(0, .9, .135); body.add(gem);
+        }
+
+        // 手臂：從肩膀轉動
+        const armMat = mat('#3d8fd6'), handMat = mat('#f2c9a0');
+        const mkArm = (x) => {
+          const pivot = new THREE.Group(); pivot.position.set(x, .58, 0);
+          const arm = box(.08, .22, .08, armMat); arm.position.y = -.1;
+          const hand = box(.08, .06, .08, handMat); hand.position.y = -.23;
+          pivot.add(arm, hand); body.add(pivot); return pivot;
+        };
+        const armR = mkArm(-.22), armL = mkArm(.22);
+
+        // 盾牌：在左手外側
+        const shield = box(.03, .26, .22, mat('#e8743b')); shield.position.set(.07, -.14, .02);
+        const emblem = box(.035, .1, .06, mat('#f5b82e')); emblem.position.set(.075, -.14, .02);
+        armL.add(shield, emblem);
+
+        // 武器：在右手
+        const hold = new THREE.Group(); hold.position.set(0, -.23, .02); armR.add(hold);
+        if (Wp.line === 'bow') {
+          const bowMat = Wp.look.glow ? new THREE.MeshLambertMaterial({ color: Wp.look.bow, emissive: '#7a5a00' }) : mat(Wp.look.bow);
+          const bow = new THREE.Mesh(new THREE.TorusGeometry(.26, .018, 6, 18, Math.PI), bowMat);
+          bow.rotation.set(0, Math.PI / 2, Math.PI / 2); bow.position.set(0, 0, .04);
+          const string = box(.006, .52, .006, new THREE.MeshBasicMaterial({ color: '#f5f0e0' })); string.position.set(0, 0, .04);
+          hold.add(bow, string);
+        } else {
+          const glow = Wp.look.flame ? '#a63a00' : Wp.look.ice ? '#1a5a80' : null;
+          const bladeMat = glow ? new THREE.MeshLambertMaterial({ color: Wp.look.blade, emissive: glow }) : mat(Wp.look.blade);
+          const blade = box(.045, .44, .02, bladeMat); blade.position.set(0, .24, .02);
+          const guard = box(.16, .035, .05, mat('#f5b82e')); guard.position.set(0, .02, .02);
+          const grip = box(.035, .09, .035, mat('#7a4a2a')); grip.position.set(0, -.04, .02);
+          hold.add(blade, guard, grip);
+          if (Wp.look.flame) {
+            const fire = new THREE.Mesh(new THREE.ConeGeometry(.05, .14, 6), new THREE.MeshBasicMaterial({ color: '#ff8a1f' }));
+            fire.position.set(0, .52, .02); hold.add(fire);
+          }
+          if (Wp.look.ice) {
+            const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.06, 0), new THREE.MeshLambertMaterial({ color: '#e6f8ff', emissive: '#3a7aa0' }));
+            crystal.position.set(0, .5, .02); crystal.scale.y = 1.6; hold.add(crystal);
+          }
+          hold.rotation.x = .5;    // 劍稍微往前斜
+        }
+        root.scale.setScalar(1.15);   // 從高處往下看，稍微放大一點比較清楚
+        return { root, body, legL, legR, armL, armR, hold, mats, bow: Wp.line === 'bow' };
       }
+
+      function disposeModel(m) {
+        m.root.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+        scene.remove(m.root);
+      }
+
+      // 換裝備時重新組一隻小騎士
+      function updateKnightModel() {
+        const key = `${state.equip.helmet}|${state.equip.cape || ''}|${state.equip.weapon}`;
+        if (knight && key === knightKey) return;
+        if (knight) disposeModel(knight);
+        knight = buildKnightModel(state.equip);
+        knightKey = key;
+        scene.add(knight.root);
+      }
+
+      const FACING_ANGLE = { down: 0, right: Math.PI / 2, up: Math.PI, left: -Math.PI / 2 };
 
       const tint = (mat, hurt) => mat.color.setRGB(1, hurt ? .55 : 1, hurt ? .55 : 1);
 
@@ -2185,14 +2293,43 @@
         if (canvas.width !== Math.round(cw * pr) || canvas.height !== Math.round(ch * pr)) renderer.setSize(cw, ch, false);
 
         // 騎士
-        updateKnightTexture();
+        updateKnightModel();
         const p = state.p;
         const pp = lerpPos(p, now, STEP_MS);
         const kp = knightPose(now);
         const kx = (pp.x * TS + TS / 2 + kp.ox) / TS, kz = (pp.y * TS + TS / 2 + kp.oy) / TS;
-        knight.position.set(kx, -kp.bob / TS, kz);
-        knight.material.rotation = -kp.rot * (p.face < 0 ? -1 : 1);
-        tint(knight.material, kp.hurtAge >= 0 && kp.hurtAge < 450);
+        const K = knight;
+        K.root.position.set(kx, -kp.bob / TS, kz);
+        // 轉身：慢慢轉到面向的方向（走最短的方向轉）
+        const want = FACING_ANGLE[p.facing || (p.face < 0 ? 'left' : 'right')];
+        if (knightAngle === null) knightAngle = want;
+        let diff = ((want - knightAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        knightAngle += diff * Math.min(1, dt * 14);
+        K.root.rotation.y = knightAngle;
+        // 身體前後傾（攻擊時往前、被打時往後）
+        K.body.rotation.x = Math.abs(kp.rot) * (kp.hurtAge >= 0 && kp.hurtAge < 450 ? -1 : 1) * .8;
+        // 走路：手腳前後擺動
+        const walk = p.moving ? Math.sin(now / 75) : 0;
+        K.legL.rotation.x = walk * .7; K.legR.rotation.x = -walk * .7;
+        K.armL.rotation.x = -walk * .5;
+        let armR = walk * .5;
+        // 攻擊動作
+        const at = p.attackT ? now - p.attackT : -1;
+        if (at >= 0 && at < 650) {
+          if (K.bow) {
+            // 舉弓 → 拉弓 → 放箭
+            armR = at < 150 ? -1.5 * (at / 150) : at < 380 ? -1.5 : -1.5 * (1 - (at - 380) / 270);
+          } else {
+            // 把劍舉高 → 往下砍 → 收回來
+            armR = at < 150 ? -2.6 * (at / 150) : at < 300 ? -2.6 + 3.3 * ((at - 150) / 150) : .7 * (1 - (at - 300) / 350);
+          }
+        } else if (state.active && state.active.type === 'beast' && !p.moving) {
+          armR = -.4 + Math.sin(now / 220) * .08;    // 戰鬥中：武器舉在前面
+        }
+        K.armR.rotation.x = armR;
+        // 被打中：全身閃紅光
+        const hurt = kp.hurtAge >= 0 && kp.hurtAge < 450;
+        K.mats.forEach(m => m.emissive.setRGB(hurt ? .55 : 0, 0, 0));
         knightShadow.position.set(kx, .016, kz);
 
         // 村民、野獸、寶箱
@@ -2301,8 +2438,8 @@
         } else if (!e.done) label(g, e.beast.name, fp.x, ly, '#fff', 'rgba(184,48,63,.9)');
       });
       const pp = lerpPos(state.p, now, STEP_MS), kp = knightPose(now);
-      const kf = R3.project(pp.x * TS + TS / 2 + kp.ox, pp.y * TS + TS / 2 + kp.oy, -kp.bob / TS);
-      label(g, settings.name, kf.x, kf.y - 1.1 * TS * kf.s - 8, '#3a2e22', 'rgba(255,255,255,.88)');
+      const kf = R3.project(pp.x * TS + TS / 2 + kp.ox, pp.y * TS + TS / 2 + kp.oy, 1.25 - kp.bob / TS);
+      label(g, settings.name, kf.x, kf.y - 10, '#3a2e22', 'rgba(255,255,255,.88)');
 
       // 打鬥特效：每個特效以自己的位置為中心，換算成螢幕上的大小
       drawFx(g, now, (gg, ax, ay, h) => {
@@ -2434,6 +2571,7 @@
       document.querySelectorAll('.pad').forEach(b => b.classList.remove('held'));
       const p = state.p;
       if (ent.x !== p.x) p.face = Math.sign(ent.x - p.x);
+      p.facing = ent.x > p.x ? 'right' : ent.x < p.x ? 'left' : ent.y < p.y ? 'up' : 'down';
       $('controls').hidden = true;
       $('encounter').hidden = false;
       $('game-screen').classList.add('encountering');
