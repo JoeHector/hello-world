@@ -432,6 +432,43 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; }
     }
+
+    /* 題目區域的字放大一點，小朋友比較好讀 */
+    .enc-kind { font-size: .98rem; }
+    .enc-title { font-size: 1.5rem; }
+    .story { font-size: 1.42rem; line-height: 1.7; }
+    .story b { font-size: 1.62rem; }
+    .answer-row { font-size: 1.65rem; }
+    .answer-box { height: 68px; font-size: 2.5rem; min-width: 104px; }
+    .slot { width: 52px; height: 62px; font-size: 2.3rem; }
+    .tool { font-size: 1.08rem; padding: 7px 16px; }
+    .feedback { font-size: 1.32rem; }
+    .feedback small { font-size: 1rem; }
+    .hint-label { font-size: 1.1rem; }
+    .hint-repeat { font-size: 1.22rem; }
+    .equation { font-size: 2.4rem; }
+    .v-hint { font-size: 1.05rem; }
+    .spell-badge { font-size: .92rem; }
+    .loot-name { font-size: 1.25rem; }
+    @media (max-width: 400px) {
+      .enc-title { font-size: 1.35rem; }
+      .story { font-size: 1.3rem; }
+      .story b { font-size: 1.46rem; }
+      .slot { width: 46px; height: 56px; font-size: 2rem; }
+      .sheet { max-height: 76%; }
+      .answer-box { height: 60px; font-size: 2.2rem; }
+    }
+    /* 橫拿手機（又寬又矮）：放大的幅度小一點，才放得下 */
+    @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+      .enc-title { font-size: 1.2rem; }
+      .story { font-size: 1.16rem; line-height: 1.55; }
+      .story b { font-size: 1.3rem; }
+      .answer-row { font-size: 1.3rem; }
+      .answer-box { height: 54px; font-size: 1.95rem; min-width: 88px; }
+      .slot { width: 42px; height: 48px; font-size: 1.8rem; }
+      .sheet .feedback { font-size: 1.02rem; }
+      .tool { font-size: .95rem; padding: 5px 12px; }
+    }
   </style>
 </head>
 <body>
@@ -574,14 +611,6 @@
 
             <p class="story" id="story"></p>
 
-            <div class="spell-row" id="spell-row" hidden></div>
-
-            <div class="answer-row" id="answer-row">
-              <span>答：</span>
-              <span class="answer-box" id="answer-box">?</span>
-              <span id="unit">隻</span>
-            </div>
-
             <div class="tools">
               <button class="tool" id="speak-btn">🔊 唸給我聽</button>
               <button class="tool" id="say-word-btn" hidden>🔤 聽英文發音</button>
@@ -601,6 +630,15 @@
         </div>
 
         <div class="sheet-foot">
+          <!-- 答案格放在鍵盤正上方，打字時一定看得到 -->
+            <div class="spell-row" id="spell-row" hidden></div>
+
+          <div class="answer-row" id="answer-row">
+            <span>答：</span>
+            <span class="answer-box" id="answer-box">?</span>
+            <span id="unit">隻</span>
+          </div>
+
           <div class="feedback" id="feedback" aria-live="polite"></div>
           <div class="letterpad" id="letterpad" hidden></div>
           <div class="keypad" id="keypad">
