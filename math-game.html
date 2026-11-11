@@ -156,6 +156,12 @@
       border: 3px solid var(--gold); border-radius: 16px; padding: 8px 12px;
     }
     .loot.show { animation: lootIn .5s ease; }
+    .loot-pop {
+      position: absolute; z-index: 7; left: 50%; transform: translateX(-50%); top: calc(110px + env(safe-area-inset-top, 0px));
+      width: max-content; max-width: calc(100% - 32px); box-shadow: 0 8px 20px rgba(0,0,0,.25); cursor: pointer;
+    }
+    .loot-pop.show { animation: lootPop .5s ease; }
+    @keyframes lootPop { 0% { transform: translateX(-50%) scale(.7); opacity: 0; } 70% { transform: translateX(-50%) scale(1.05); } }
     @keyframes lootIn { 0% { transform: scale(.7); opacity: 0; } 70% { transform: scale(1.05); } }
     .loot img { width: 64px; height: 60px; flex: none; }
     .loot-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -481,6 +487,7 @@
 
       <button class="btn" id="start-btn">產生地圖，出發！⚔️</button>
       <p class="best" id="best-text"></p>
+      <p class="best" id="gear-progress"></p>
     </section>
 
     <!-- 冒險畫面（全螢幕） -->
@@ -516,6 +523,14 @@
       </div>
 
       <div class="toast" id="toast" hidden></div>
+      <div class="loot loot-pop" id="loot-pop" hidden role="status">
+        <img id="loot-pop-knight" alt="穿上新裝備的小騎士" />
+        <div class="loot-text">
+          <div class="loot-title" id="loot-pop-title">🎁 寶箱裡有新裝備！</div>
+          <div class="loot-name" id="loot-pop-name"></div>
+          <small>已經換上了，可以在 🎒 背包裡更換</small>
+        </div>
+      </div>
       <div class="focus-tip" id="focus-tip" hidden>⌨️ 點一下畫面，就能用鍵盤方向鍵走路</div>
 
       <!-- 方向鍵 -->
@@ -922,7 +937,37 @@
       return knightImgs[key];
     }
     const knightImg = knightImage(DEFAULT_EQUIP);
-    $('hero-knight').src = knightImg.src;
+
+    // 裝備存在這台裝置的瀏覽器裡，下一次冒險會接著用
+    const GEAR_KEY = 'knight-gear-v1';
+    const ALL_GEAR = Object.values(GEAR_TRACKS).flat();
+    const CHEST_LOOT_RATE = 0.35;   // 寶箱裡有裝備的機會
+    function loadGear() {
+      const owned = new Set(Object.values(DEFAULT_EQUIP).filter(Boolean));
+      const equip = { ...DEFAULT_EQUIP };
+      try {
+        const d = JSON.parse(localStorage.getItem(GEAR_KEY) || 'null');
+        if (d) {
+          (d.owned || []).forEach(id => { if (GEAR[id]) owned.add(id); });
+          for (const slot of ['helmet', 'cape', 'weapon']) {
+            const id = d.equip ? d.equip[slot] : undefined;
+            if (slot === 'cape' && id === null) equip.cape = null;
+            else if (id && GEAR[id] && GEAR[id].slot === slot && owned.has(id)) equip[slot] = id;
+          }
+        }
+      } catch (e) {}
+      return { owned, equip };
+    }
+    function saveGear() {
+      try { localStorage.setItem(GEAR_KEY, JSON.stringify({ owned: [...state.owned], equip: state.equip })); } catch (e) {}
+    }
+    // 開始畫面：顯示目前的裝扮和收集進度
+    function showSavedLook() {
+      const g = loadGear();
+      $('hero-knight').src = knightImage(g.equip).src;
+      const got = ALL_GEAR.filter(id => g.owned.has(id)).length;
+      $('gear-progress').textContent = got ? `🎒 已收集 ${got} / ${ALL_GEAR.length} 件裝備${got === ALL_GEAR.length ? '，全部收集完成！🎉' : ''}` : '';
+    }
 
     // =====================================================================
     // 開始畫面
@@ -1231,7 +1276,8 @@
         npcTotal: ents.filter(e => e.type === 'npc').length,
         beastTotal: ents.filter(e => e.type === 'beast').length,
         active: null, q: null, input: '', locked: true, marks: {}, wrongs: [],
-        equip: { ...DEFAULT_EQUIP }, owned: new Set(Object.values(DEFAULT_EQUIP).filter(Boolean)), gotLoot: false, lastKnightImg: null,
+        ...(() => { const g = loadGear(); return { equip: g.equip, owned: g.owned, gotLoot: ALL_GEAR.some(id => g.owned.has(id)) }; })(),
+        newLoot: 0, lastKnightImg: null,
         effects: [], fx: [], shake: null, flash: null, finished: false, raf: 0, last: now, miniT: 0, gateOpen: false,
       };
       heldDirs.length = 0;
@@ -1898,6 +1944,11 @@
       addFloat(c.x, c.y, `+${c.coins} 🪙`, '#c58a00');
       toast(`🎁 打開寶箱，得到 ${c.coins} 枚金幣！`);
       sound('coin');
+      const options = ALL_GEAR.length && Object.values(GEAR_TRACKS).map(track => track.find(id => !state.owned.has(id))).filter(Boolean);
+      if (options.length && Math.random() < CHEST_LOOT_RATE) {
+        const id = pick(options);
+        setTimeout(() => { if (state && !state.finished) giveLoot(id, 'chest'); }, 600);
+      }
     }
 
     // =====================================================================
@@ -2391,7 +2442,9 @@
       $('bag-knight').src = knightImage(eq).src;
       const total = Object.values(GEAR_TRACKS).flat().length;
       const got = Object.values(GEAR_TRACKS).flat().filter(id => state.owned.has(id)).length;
-      $('bag-sub').textContent = `收集到 ${got} / ${total} 件新裝備，點一下就能換上`;
+      $('bag-sub').textContent = got === total
+        ? `🎉 ${total} 件裝備全部收集完成！點一下就能換上`
+        : `收集到 ${got} / ${total} 件裝備，點一下就能換上。裝備會留到下一次冒險`;
       const slots = {
         helmet: ['helm-basic', ...GEAR_TRACKS.helmet],
         cape: [null, ...GEAR_TRACKS.cape],
@@ -2417,27 +2470,44 @@
       const b = e.target.closest('.gear[data-slot]');
       if (!b || !state) return;
       state.equip[b.dataset.slot] = b.dataset.id || null;
+      saveGear();
       sound('equip');
       renderBag();
     });
     $('bag-btn').addEventListener('click', openBag);
+    $('loot-pop').addEventListener('click', () => { $('loot-pop').hidden = true; });
     $('bag-close').addEventListener('click', closeBag);
     $('bag-modal').addEventListener('click', (e) => { if (e.target.id === 'bag-modal') closeBag(); });
 
-    function giveLoot(id) {
+    function giveLoot(id, from) {
       const item = GEAR[id];
       state.gotLoot = true;
       state.owned.add(id);
+      state.newLoot++;
       state.equip[item.slot] = id;          // 直接換上新裝備
+      saveGear();
       const pc = center(state.p);
       burst(pc.x, pc.y, 10, ['#fff'], { emoji: ['✨', '⭐'], speed: .09, life: 900 });
       addFx({ kind: 'ring', x: pc.x, y: pc.y, color: '#f5b82e', r: 40, dur: 600 });
       addFx({ kind: 'pop', emoji: item.icon, x: pc.x, y: pc.y - 46, size: 30, dur: 1400 });
       sound('equip');
-      $('loot-knight').src = knightImage(state.equip).src;
-      $('loot-name').textContent = `${item.icon} ${item.name}（${SLOT_NAMES[item.slot]}）`;
-      $('loot').hidden = false;
-      $('loot').classList.remove('show'); void $('loot').offsetWidth; $('loot').classList.add('show');
+      const name = `${item.icon} ${item.name}（${SLOT_NAMES[item.slot]}）`;
+      if (state.active) {
+        $('loot-knight').src = knightImage(state.equip).src;
+        $('loot-name').textContent = name;
+        $('loot').hidden = false;
+        $('loot').classList.remove('show'); void $('loot').offsetWidth; $('loot').classList.add('show');
+      } else {
+        // 在地圖上（例如開寶箱）：上方跳出卡片，幾秒後自己收起來
+        const pop = $('loot-pop');
+        $('loot-pop-knight').src = knightImage(state.equip).src;
+        $('loot-pop-title').textContent = from === 'chest' ? '🎁 寶箱裡有新裝備！' : '🎁 獲得新裝備！';
+        $('loot-pop-name').textContent = name;
+        pop.hidden = false;
+        pop.classList.remove('show'); void pop.offsetWidth; pop.classList.add('show');
+        clearTimeout(giveLoot.timer);
+        giveLoot.timer = setTimeout(() => { pop.hidden = true; }, 3500);
+      }
       bump('bag-btn');
     }
 
@@ -2493,7 +2563,7 @@
       const eq = state.equip;
       const gotCount = Object.values(GEAR_TRACKS).flat().filter(id => state.owned.has(id)).length;
       $('result-gear').innerHTML = [eq.helmet, eq.cape, eq.weapon].filter(Boolean).map(id => `${GEAR[id].icon} ${GEAR[id].name}`).join('<br>')
-        + `<br><span class="lbl">一共收集到 ${gotCount} 件新裝備</span>`;
+        + `<br><span class="lbl">這趟新拿到 ${state.newLoot} 件，總共收集 ${gotCount} / ${ALL_GEAR.length} 件</span>`;
 
       const review = $('review');
       review.innerHTML = '';
@@ -2521,6 +2591,7 @@
       } catch (e) {}
     }
     function showBest() {
+      showSavedLook();
       let best = 0;
       try { best = Number(localStorage.getItem(bestKey()) || 0); } catch (e) {}
       $('best-text').textContent = best ? `🏅 這種地圖的最多金幣：🪙 ${best} 枚` : '';
