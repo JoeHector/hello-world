@@ -56,7 +56,7 @@
     /* ---------- 開始畫面 ---------- */
     .hero { text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
     .hero-art { display: flex; align-items: flex-end; gap: 14px; font-size: 2.8rem; }
-    .hero-art img { width: 60px; height: 70px; }
+    .hero-art img { width: 75px; height: 70px; }
     .hero h1 { font-size: 2rem; text-wrap: balance; }
     .hero p { color: var(--muted); line-height: 1.6; text-wrap: balance; }
 
@@ -143,6 +143,49 @@
       left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
       display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none;
     }
+    .left-col { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+    .bag-btn {
+      pointer-events: auto; border: 3px solid var(--line); background: rgba(255,250,240,.95); border-radius: 12px;
+      padding: 4px 10px; font: inherit; font-weight: bold; font-size: .88rem; color: var(--ink); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    }
+    .bag-btn.bump { animation: bump .5s 2; border-color: var(--gold); }
+    #game-screen.encountering .bag-btn { display: none; }
+
+    .loot {
+      display: flex; align-items: center; gap: 12px; background: linear-gradient(135deg, #fff6d6, #ffe9c2);
+      border: 3px solid var(--gold); border-radius: 16px; padding: 8px 12px;
+    }
+    .loot.show { animation: lootIn .5s ease; }
+    @keyframes lootIn { 0% { transform: scale(.7); opacity: 0; } 70% { transform: scale(1.05); } }
+    .loot img { width: 64px; height: 60px; flex: none; }
+    .loot-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .loot-title { color: var(--accent-dark); font-weight: bold; font-size: .95rem; }
+    .loot-name { font-weight: bold; font-size: 1.1rem; }
+    .loot small { color: var(--muted); font-size: .8rem; }
+
+    .bag-box { max-width: 440px; text-align: left; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); gap: 10px; }
+    .bag-box .btn { flex: none; }
+    .bag-head { display: flex; align-items: center; gap: 14px; }
+    .bag-head img { width: 84px; height: 78px; flex: none; background: #eaf6dd; border-radius: 16px; border: 3px solid var(--line); }
+    .bag-head h3 { font-size: 1.3rem; }
+    .bag-head p { font-size: .9rem; color: var(--muted); }
+    .bag-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+    .bag-slot h4 { font-size: .95rem; margin-bottom: 6px; }
+    .bag-items { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .gear {
+      border: 3px solid var(--line); background: #fff; border-radius: 12px; padding: 6px 4px; font: inherit; font-size: .78rem;
+      font-weight: bold; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
+    }
+    .gear .gi { font-size: 1.4rem; line-height: 1.2; }
+    .gear.on { border-color: var(--green); background: #e8f8ee; }
+    .gear.locked { opacity: .45; cursor: default; }
+    .gear:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+    .result-look { display: flex; align-items: center; gap: 14px; }
+    .result-look img { width: 96px; height: 90px; flex: none; }
+    .result-look .lbl { color: var(--muted); font-size: .9rem; }
+    .result-look .gear-names { font-weight: bold; line-height: 1.6; }
+
     .goals {
       background: rgba(255,250,240,.93); border-radius: 12px; padding: 4px 10px; font-size: .88rem; font-weight: bold;
       line-height: 1.5; box-shadow: 0 2px 6px rgba(0,0,0,.15); white-space: nowrap;
@@ -457,7 +500,10 @@
       </div>
 
       <div class="under-hud">
-        <div class="goals" id="goals"></div>
+        <div class="left-col">
+          <div class="goals" id="goals"></div>
+          <button class="bag-btn" id="bag-btn" aria-label="打開背包">🎒 背包</button>
+        </div>
         <div class="map-box">
           <canvas class="minimap" id="minimap" aria-label="小地圖"></canvas>
           <div class="legend">
@@ -542,6 +588,14 @@
             <button class="key" data-key="0">0</button>
             <button class="key ok" data-key="ok" aria-label="確定">✔</button>
           </div>
+          <div class="loot" id="loot" hidden>
+            <img id="loot-knight" alt="穿上新裝備的小騎士" />
+            <div class="loot-text">
+              <div class="loot-title">🎁 獲得新裝備！</div>
+              <div class="loot-name" id="loot-name"></div>
+              <small>已經幫你換上了，可以在 🎒 背包裡更換</small>
+            </div>
+          </div>
           <button class="btn go" id="next-btn" hidden>繼續冒險 ▶</button>
         </div>
       </div>
@@ -553,6 +607,13 @@
       <h2 class="result-title" id="result-title">抵達水晶城堡！</h2>
       <div class="result-stars" id="result-stars"></div>
       <div class="card result-detail" id="result-detail"></div>
+      <div class="card result-look">
+        <img id="result-knight" alt="冒險結束時的小騎士" />
+        <div>
+          <div class="lbl">這趟冒險最後的裝扮</div>
+          <div class="gear-names" id="result-gear"></div>
+        </div>
+      </div>
       <div class="card" id="review-card">
         <h2>📝 再看一次有點難的題目</h2>
         <div class="review" id="review"></div>
@@ -560,6 +621,20 @@
       <button class="btn" id="again-btn">換一張新地圖再玩 🔁</button>
       <button class="btn secondary" id="home-btn">回到首頁 🏠</button>
     </section>
+  </div>
+
+  <div class="modal" id="bag-modal" hidden>
+    <div class="modal-box bag-box" role="dialog" aria-labelledby="bag-title">
+      <div class="bag-head">
+        <img id="bag-knight" alt="小騎士現在的樣子" />
+        <div>
+          <h3 id="bag-title">🎒 背包</h3>
+          <p id="bag-sub">點一下裝備就能換上</p>
+        </div>
+      </div>
+      <div class="bag-list" id="bag-list"></div>
+      <button class="btn secondary" id="bag-close">關閉</button>
+    </div>
   </div>
 
   <div class="modal" id="quit-modal" hidden>
@@ -759,27 +834,95 @@
     const stripTags = (html) => html.replace(/<[^>]+>/g, '');
     const manhattan = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
-    // 騎士圖案（面向右邊），畫布和開始畫面共用
-    const KNIGHT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56" width="96" height="112">
-      <path d="M22 6 q5 -6 11 0 q-5 -1 -8 4z" fill="#e0485a" stroke="#3a2e22" stroke-width="1"/>
-      <rect x="15" y="22" width="18" height="18" rx="5" fill="#3d8fd6" stroke="#3a2e22" stroke-width="1.5"/>
-      <rect x="15" y="32" width="18" height="3" fill="#f5b82e"/>
-      <rect x="17" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
-      <rect x="26" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
-      <rect x="16" y="48" width="7" height="5" rx="2" fill="#3a2e22"/>
-      <rect x="25" y="48" width="8" height="5" rx="2" fill="#3a2e22"/>
-      <rect x="15" y="6" width="18" height="17" rx="8" fill="#c9d3dd" stroke="#3a2e22" stroke-width="1.5"/>
-      <rect x="23" y="12" width="10" height="3.5" rx="1.7" fill="#3a2e22"/>
-      <rect x="37" y="7" width="4" height="22" rx="1.5" fill="#eef3f7" stroke="#3a2e22" stroke-width="1.2"/>
-      <rect x="33" y="28" width="12" height="3.5" rx="1.5" fill="#f5b82e" stroke="#3a2e22" stroke-width="1"/>
-      <rect x="37.5" y="31.5" width="3" height="6" rx="1" fill="#7a4a2a"/>
-      <path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="#e8743b" stroke="#3a2e22" stroke-width="1.5"/>
-      <path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="#f5b82e"/>
-    </svg>`;
-    const KNIGHT_URL = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(KNIGHT_SVG);
-    const knightImg = new Image();
-    knightImg.src = KNIGHT_URL;
-    $('hero-knight').src = KNIGHT_URL;
+    // =====================================================================
+    // 裝備：頭盔、披風、武器（劍或弓箭）
+    // 每一條路線依序升級，例如頭盔：銅製 → 銀色羽毛 → 黃金王冠
+    // =====================================================================
+    const GEAR = {
+      'helm-basic':  { slot: 'helmet', name: '新手頭盔', icon: '⛑️', look: { fill: '#c9d3dd', plume: '#e0485a' } },
+      'helm-bronze': { slot: 'helmet', name: '銅製頭盔', icon: '🪖', look: { fill: '#cd8a4a', rivets: true } },
+      'helm-silver': { slot: 'helmet', name: '銀色羽毛頭盔', icon: '🪶', look: { fill: '#eef3f8', plume: '#3d8fd6', tall: true } },
+      'helm-gold':   { slot: 'helmet', name: '黃金王冠頭盔', icon: '👑', look: { fill: '#f5c84a', crown: true } },
+      'cape-red':    { slot: 'cape', name: '紅色披風', icon: '🟥', look: { fill: '#e0485a' } },
+      'cape-blue':   { slot: 'cape', name: '藍色勇者披風', icon: '🟦', look: { fill: '#3d6fd6', trim: '#f5b82e' } },
+      'cape-star':   { slot: 'cape', name: '星空魔法披風', icon: '🌌', look: { fill: '#5b3fa8', trim: '#f5b82e', stars: true } },
+      'sword-iron':  { slot: 'weapon', line: 'sword', name: '鐵劍', icon: '🗡️', look: { blade: '#eef3f7' },
+        fx: { slash: ['rgba(255,214,90,.9)', '#fff'], sparks: ['#fff', '#ffd65a', '#f5b82e', '#ffeaa0'] } },
+      'sword-flame': { slot: 'weapon', line: 'sword', name: '火焰劍', icon: '🔥', look: { blade: '#ff8a3d', flame: true },
+        fx: { slash: ['rgba(255,110,30,.9)', '#ffe08a'], sparks: ['#ff6a00', '#ffb347', '#ffd65a'], emoji: '🔥' } },
+      'sword-ice':   { slot: 'weapon', line: 'sword', name: '冰霜劍', icon: '❄️', look: { blade: '#a8e6ff', ice: true },
+        fx: { slash: ['rgba(110,200,255,.9)', '#fff'], sparks: ['#bfe9ff', '#fff', '#7fd3ff'], emoji: '❄️' } },
+      'bow-wood':    { slot: 'weapon', line: 'bow', name: '木頭弓箭', icon: '🏹', look: { bow: '#8b5a2b' },
+        fx: { arrow: '#6b4a2a', sparks: ['#fff', '#ffd65a', '#c08a52'] } },
+      'bow-elf':     { slot: 'weapon', line: 'bow', name: '精靈弓', icon: '🍃', look: { bow: '#2fa85c' },
+        fx: { arrow: '#23854a', trail: 'rgba(123,227,160,.8)', sparks: ['#7be3a0', '#2fa85c', '#fff'], emoji: '🍃' } },
+      'bow-light':   { slot: 'weapon', line: 'bow', name: '光之弓', icon: '✨', look: { bow: '#f5c84a', glow: true },
+        fx: { arrow: '#f5b82e', trail: 'rgba(255,240,170,.95)', sparks: ['#fff', '#fff6c2', '#ffd65a'], emoji: '✨' } },
+    };
+    const DEFAULT_EQUIP = { helmet: 'helm-basic', cape: null, weapon: 'sword-iron' };
+    const GEAR_TRACKS = {
+      helmet: ['helm-bronze', 'helm-silver', 'helm-gold'],
+      cape:   ['cape-red', 'cape-blue', 'cape-star'],
+      sword:  ['sword-flame', 'sword-ice'],
+      bow:    ['bow-wood', 'bow-elf', 'bow-light'],
+    };
+    const SLOT_NAMES = { helmet: '頭盔', cape: '披風', weapon: '武器' };
+    const LOOT_RATE = 0.6;   // 第一次一定會掉，之後每次 60%
+
+    // 騎士圖案（面向右邊）。畫面寬一點（-6 ~ 54），讓披風飄到身體後面時不會被切掉
+    function knightSvg(eq) {
+      const H = GEAR[eq.helmet].look;
+      const C = eq.cape ? GEAR[eq.cape].look : null;
+      const W = GEAR[eq.weapon];
+      const ink = '#3a2e22';
+      let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 0 60 56" width="120" height="112">`;
+      if (C) {
+        s += `<path d="M17 22 C9 27 1 38 -4 52 Q6 55 15 51 L23 30 Z" fill="${C.fill}" stroke="${ink}" stroke-width="1.3"/>`;
+        if (C.trim) s += `<path d="M-4 52 Q6 55 15 51" fill="none" stroke="${C.trim}" stroke-width="2.2"/>`;
+        if (C.stars) s += `<circle cx="2" cy="44" r="1.3" fill="#fff"/><circle cx="7" cy="38" r="1" fill="#fff6c2"/><circle cx="9" cy="48" r="1.1" fill="#fff"/><circle cx="12" cy="33" r=".9" fill="#fff"/>`;
+      }
+      if (H.plume) {
+        s += H.tall
+          ? `<path d="M19 8 q3 -10 15 -5 q-6 0 -9 7z" fill="${H.plume}" stroke="${ink}" stroke-width="1"/>`
+          : `<path d="M22 6 q5 -6 11 0 q-5 -1 -8 4z" fill="${H.plume}" stroke="${ink}" stroke-width="1"/>`;
+      }
+      s += `<rect x="15" y="22" width="18" height="18" rx="5" fill="#3d8fd6" stroke="${ink}" stroke-width="1.5"/>
+        <rect x="15" y="32" width="18" height="3" fill="#f5b82e"/>
+        <rect x="17" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
+        <rect x="26" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
+        <rect x="16" y="48" width="7" height="5" rx="2" fill="${ink}"/>
+        <rect x="25" y="48" width="8" height="5" rx="2" fill="${ink}"/>`;
+      if (C) s += `<path d="M15 22 Q24 27 33 22 L33 24.5 Q24 29.5 15 24.5 Z" fill="${C.fill}" stroke="${ink}" stroke-width=".8"/><circle cx="24" cy="26" r="1.6" fill="${C.trim || '#f5b82e'}"/>`;
+      s += `<rect x="15" y="6" width="18" height="17" rx="8" fill="${H.fill}" stroke="${ink}" stroke-width="1.5"/>`;
+      if (H.rivets) s += `<rect x="23" y="4" width="2.4" height="7" rx="1" fill="#a8652f" stroke="${ink}" stroke-width=".8"/><circle cx="18" cy="11" r="1" fill="#7a4a2a"/><circle cx="18" cy="19" r="1" fill="#7a4a2a"/>`;
+      if (H.crown) s += `<path d="M15 9 l2.5 -7 l3.5 4.5 l3 -6.5 l3 6.5 l3.5 -4.5 l2.5 7 z" fill="#f5c84a" stroke="${ink}" stroke-width="1"/><circle cx="24" cy="5.5" r="1.6" fill="#e0485a"/>`;
+      s += `<rect x="23" y="12" width="10" height="3.5" rx="1.7" fill="${ink}"/>`;
+      if (W.line === 'bow') {
+        if (W.look.glow) s += `<path d="M37 5 Q48 28 37 51" fill="none" stroke="#fff6c2" stroke-width="6" stroke-linecap="round" opacity=".7"/>`;
+        s += `<path d="M37 5 Q48 28 37 51" fill="none" stroke="${W.look.bow}" stroke-width="3" stroke-linecap="round"/>
+          <line x1="37" y1="5" x2="37" y2="51" stroke="#f5f0e0" stroke-width="1"/>
+          <rect x="39" y="25" width="5" height="7" rx="1.5" fill="#7a4a2a" stroke="${ink}" stroke-width=".8"/>`;
+      } else {
+        s += `<rect x="37" y="7" width="4" height="22" rx="1.5" fill="${W.look.blade}" stroke="${ink}" stroke-width="1.2"/>`;
+        if (W.look.flame) s += `<path d="M39 8 q-4 -4 0 -9 q0 4 3 5 q1 3 -3 4z" fill="#ff6a00" stroke="#c63d00" stroke-width=".6"/><path d="M38.5 18 l1.5 -3 l1 3z" fill="#ffd65a"/>`;
+        if (W.look.ice) s += `<path d="M39 1 l2.5 6 h-5z" fill="#e6f8ff" stroke="#2c72b2" stroke-width=".7"/><path d="M38 14 l2 -2 l1 2" fill="none" stroke="#fff" stroke-width=".8"/>`;
+        s += `<rect x="33" y="28" width="12" height="3.5" rx="1.5" fill="#f5b82e" stroke="${ink}" stroke-width="1"/>
+          <rect x="37.5" y="31.5" width="3" height="6" rx="1" fill="#7a4a2a"/>`;
+      }
+      s += `<path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="#e8743b" stroke="${ink}" stroke-width="1.5"/>
+        <path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="#f5b82e"/></svg>`;
+      return s;
+    }
+    const svgUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    const KNIGHT_ASPECT = 60 / 56;      // 圖的寬 ÷ 高
+    const knightImgs = {};
+    function knightImage(eq) {
+      const key = `${eq.helmet}|${eq.cape || ''}|${eq.weapon}`;
+      if (!knightImgs[key]) { const im = new Image(); im.src = svgUrl(knightSvg(eq)); knightImgs[key] = im; }
+      return knightImgs[key];
+    }
+    const knightImg = knightImage(DEFAULT_EQUIP);
+    $('hero-knight').src = knightImg.src;
 
     // =====================================================================
     // 開始畫面
@@ -1088,6 +1231,7 @@
         npcTotal: ents.filter(e => e.type === 'npc').length,
         beastTotal: ents.filter(e => e.type === 'beast').length,
         active: null, q: null, input: '', locked: true, marks: {}, wrongs: [],
+        equip: { ...DEFAULT_EQUIP }, owned: new Set(Object.values(DEFAULT_EQUIP).filter(Boolean)), gotLoot: false, lastKnightImg: null,
         effects: [], fx: [], shake: null, flash: null, finished: false, raf: 0, last: now, miniT: 0, gateOpen: false,
       };
       heldDirs.length = 0;
@@ -1332,9 +1476,12 @@
       let fx = pp.x * TS + TS / 2, fy = pp.y * TS + TS / 2;
       if (state.active) { fx = (fx + state.active.x * TS + TS / 2) / 2; fy = (fy + state.active.y * TS + TS / 2) / 2; }
       // 讓焦點落在看得到的範圍正中間；必要時可以超出地圖邊緣（超出的地方會被狀態列或面板蓋住）
+      // 題目面板打開時，允許鏡頭超出地圖邊緣一點，讓打鬥一定在看得到的範圍正中間
+      const sheetOpen = !sheet.hidden;
       const camFor = (focus, a, b, view, map) => {
         if (map <= view && a === 0 && b === view) return -(view - map) / 2;
-        return clamp(focus - (a + b) / 2, -a, Math.max(-a, map - b));
+        const hi = sheetOpen ? map - (a + b) / 2 + TS : map - b;
+        return clamp(focus - (a + b) / 2, -a, Math.max(-a, hi));
       };
       const tx = camFor(fx, x0, x1, vw, mapW);
       const ty = camFor(fy, y0, y1, vh, mapH);
@@ -1457,10 +1604,29 @@
             const a0 = base - 1.6, a1 = a0 + 3.0 * sweep;
             g.globalAlpha = k < .5 ? 1 : 1 - (k - .5) * 2;
             g.lineCap = 'round';
-            g.strokeStyle = 'rgba(255,214,90,.9)'; g.lineWidth = 11;
+            const [outer, inner] = f.colors || ['rgba(255,214,90,.9)', '#fff'];
+            g.strokeStyle = outer; g.lineWidth = 11;
             g.beginPath(); g.arc(f.x, f.y, 24, a0, a1); g.stroke();
-            g.strokeStyle = '#fff'; g.lineWidth = 5;
+            g.strokeStyle = inner; g.lineWidth = 5;
             g.beginPath(); g.arc(f.x, f.y, 24, a0 + .2, a1); g.stroke();
+            break;
+          }
+          case 'arrow': { // 箭：從騎士飛到野獸，後面拖一道光
+            const e = Math.min(1, t / (f.flight || 200));
+            const x = f.x + (f.tx - f.x) * e, y = f.y + (f.ty - f.y) * e;
+            const ang = Math.atan2(f.ty - f.y, f.tx - f.x);
+            if (e >= 1) { g.globalAlpha = Math.max(0, 1 - (t - f.flight) / 120); }
+            if (f.trail) {
+              g.strokeStyle = f.trail; g.lineWidth = 5; g.lineCap = 'round';
+              g.beginPath(); g.moveTo(f.x + (x - f.x) * .35, f.y + (y - f.y) * .35); g.lineTo(x, y); g.stroke();
+            }
+            g.translate(x, y); g.rotate(ang);
+            g.strokeStyle = f.color; g.lineWidth = 2.5;
+            g.beginPath(); g.moveTo(-18, 0); g.lineTo(0, 0); g.stroke();
+            g.fillStyle = '#9aa4ad';
+            g.beginPath(); g.moveTo(4, 0); g.lineTo(-3, -3.5); g.lineTo(-3, 3.5); g.closePath(); g.fill();
+            g.fillStyle = '#fff';
+            g.fillRect(-19, -3, 4, 2); g.fillRect(-19, 1, 4, 2);
             break;
           }
           case 'ring': {
@@ -1534,7 +1700,12 @@
       // 攻擊：往後蓄力 → 衝上前揮劍 → 退回原位
       if (p.attackT) {
         const t = now - p.attackT;
-        if (t >= 0 && t < 650) {
+        if (t >= 0 && t < 650 && p.attackKind === 'bow') {
+          // 拉弓：身體往後拉、停一下放箭、再回來
+          const k = t < 150 ? -(t / 150) * 6 : t < 380 ? -6 : -6 * (1 - (t - 380) / 270);
+          ox = (p.ax || 0) * k; oy = (p.ay || 0) * k;
+          rot = t < 380 ? -.12 : -.12 * (1 - (t - 380) / 270);
+        } else if (t >= 0 && t < 650) {
           let k;
           if (t < 150) { k = -(t / 150) * 8; rot = -.3 * (t / 150); }
           else if (t < 300) { const u = (t - 150) / 150; k = -8 + u * 38; rot = -.3 + u * .75; }
@@ -1557,12 +1728,15 @@
       const x = pos.x * TS + TS / 2 + ox + shake;
       const y = pos.y * TS + TS / 2 + oy;
       shadow(g, x, y + 18, 13);
-      const w = 38, h = 44;
+      const h = 44, w = h * KNIGHT_ASPECT;
       g.save();
       g.translate(x, y + bob);
       g.rotate(rot * (p.face < 0 ? -1 : 1));
       if (p.face < 0) g.scale(-1, 1);
-      if (knightImg.complete && knightImg.naturalWidth) g.drawImage(knightImg, -w / 2, -h / 2 - 2, w, h);
+      let img = knightImage(state.equip);
+      if (!(img.complete && img.naturalWidth)) img = state.lastKnightImg || knightImg;
+      else state.lastKnightImg = img;
+      if (img.complete && img.naturalWidth) g.drawImage(img, -w / 2, -h / 2 - 2, w, h);
       else { g.fillStyle = '#3d8fd6'; g.beginPath(); g.arc(0, 0, 14, 0, Math.PI * 2); g.fill(); }
       g.restore();
       if (hurtAge >= 0 && hurtAge < 450) {
@@ -1795,6 +1969,7 @@
         state.tiles = shuffle([...q.word.split(''), ...extra]).map(ch => ({ ch, used: false }));
         state.stack = [];
       }
+      $('loot').hidden = true;
       $('hint').hidden = true;
       $('hint-btn').hidden = false;
       $('hint-btn').textContent = `💡 看提示（-${HINT_COST} 🪙）`;
@@ -2072,11 +2247,19 @@
       p.attackT = performance.now();
       p.ax = Math.sign(ent.x - p.x);
       p.ay = Math.sign(ent.y - p.y);
-      const ec = center(ent);
+      const ec = center(ent), pc0 = center(p);
       const finisher = ent.hp <= 1;
-      sound('swing');
-      // 劍光
-      addFx({ kind: 'slash', x: ec.x - p.ax * 6, y: ec.y - p.ay * 6, dx: p.ax || 1, dy: p.ay, dur: 320 }, 220);
+      const wpn = GEAR[state.equip.weapon];
+      const bow = wpn.line === 'bow';
+      p.attackKind = bow ? 'bow' : 'sword';
+      if (bow) {
+        // 拉弓 → 放箭 → 箭飛過去
+        sound('bow');
+        addFx({ kind: 'arrow', x: pc0.x + (p.ax || 1) * 12, y: pc0.y - 2, tx: ec.x, ty: ec.y, color: wpn.fx.arrow, trail: wpn.fx.trail, flight: 180, dur: 300 }, 170);
+      } else {
+        sound('swing');
+        addFx({ kind: 'slash', x: ec.x - p.ax * 6, y: ec.y - p.ay * 6, dx: p.ax || 1, dy: p.ay, colors: wpn.fx.slash, dur: 320 }, 220);
+      }
       setTimeout(() => {
         if (!state || state.active !== ent) return;
         // 命中：火花、衝擊波、畫面震動、傷害數字
@@ -2084,8 +2267,9 @@
         ent.hitT = performance.now();
         renderHp(ent);
         sound('hit');
-        burst(ec.x, ec.y, 14, ['#fff', '#ffd65a', '#f5b82e', '#ffeaa0'], { speed: .16, life: 520, size: 3.2 });
-        addFx({ kind: 'ring', x: ec.x, y: ec.y, color: '#ffd65a', r: 30, dur: 380 });
+        burst(ec.x, ec.y, 14, wpn.fx.sparks, { speed: .16, life: 520, size: 3.2 });
+        if (wpn.fx.emoji) burst(ec.x, ec.y, 4, ['#fff'], { emoji: [wpn.fx.emoji], speed: .09, life: 700 });
+        addFx({ kind: 'ring', x: ec.x, y: ec.y, color: wpn.fx.sparks[1], r: 30, dur: 380 });
         addFx({ kind: 'dmg', x: ec.x, y: ec.y - TS * .5, text: finisher ? '-1 💥' : '-1', color: '#e0485a', dur: 900 });
         shakeScreen(finisher ? 7 : 5, 240);
         if (ent.hp <= 0) {
@@ -2107,7 +2291,7 @@
           fb.innerHTML = `${text}<br>${ent.beast.name}還有 ${ent.hp} 點生命！`;
           showNext('fight', '下一回合 ⚔️');
         }
-      }, 300);
+      }, bow ? 350 : 300);
     }
 
     // 答錯就扣 1 顆愛心；野獸還會撲過來反擊
@@ -2180,6 +2364,81 @@
       updateHud();
       $('hint-btn').hidden = true;
       showNext('go', '繼續冒險 ▶');
+      const loot = rollLoot();
+      if (loot) setTimeout(() => { if (state && state.active === ent) giveLoot(loot); }, ent.type === 'beast' ? 900 : 350);
+    }
+
+    // 隨機抽一件還沒拿到的裝備（每條路線從低階開始）
+    function rollLoot() {
+      const options = Object.values(GEAR_TRACKS).map(track => track.find(id => !state.owned.has(id))).filter(Boolean);
+      if (!options.length) return null;
+      if (state.gotLoot && Math.random() > LOOT_RATE) return null;
+      return pick(options);
+    }
+
+    // ---------- 背包 ----------
+    function openBag() {
+      if (!state || state.active || state.finished) return;
+      heldDirs.length = 0;
+      renderBag();
+      $('bag-modal').hidden = false;
+      sound('tap');
+    }
+    function closeBag() { $('bag-modal').hidden = true; focusGame(); }
+
+    function renderBag() {
+      const eq = state.equip;
+      $('bag-knight').src = knightImage(eq).src;
+      const total = Object.values(GEAR_TRACKS).flat().length;
+      const got = Object.values(GEAR_TRACKS).flat().filter(id => state.owned.has(id)).length;
+      $('bag-sub').textContent = `收集到 ${got} / ${total} 件新裝備，點一下就能換上`;
+      const slots = {
+        helmet: ['helm-basic', ...GEAR_TRACKS.helmet],
+        cape: [null, ...GEAR_TRACKS.cape],
+        weapon: ['sword-iron', ...GEAR_TRACKS.sword, ...GEAR_TRACKS.bow],
+      };
+      let html = '';
+      for (const [slot, ids] of Object.entries(slots)) {
+        html += `<div class="bag-slot"><h4>${SLOT_NAMES[slot]}</h4><div class="bag-items">`;
+        for (const id of ids) {
+          const owned = id === null || state.owned.has(id);
+          const on = eq[slot] === id;
+          const label = id === null ? { icon: '🚫', name: '不穿披風' } : GEAR[id];
+          html += owned
+            ? `<button class="gear${on ? ' on' : ''}" data-slot="${slot}" data-id="${id || ''}" aria-pressed="${on}"><span class="gi">${label.icon}</span>${label.name}${on ? '<br>✅ 穿著' : ''}</button>`
+            : `<button class="gear locked" disabled aria-label="還沒拿到"><span class="gi">❔</span>？？？</button>`;
+        }
+        html += '</div></div>';
+      }
+      $('bag-list').innerHTML = html;
+    }
+
+    $('bag-list').addEventListener('click', (e) => {
+      const b = e.target.closest('.gear[data-slot]');
+      if (!b || !state) return;
+      state.equip[b.dataset.slot] = b.dataset.id || null;
+      sound('equip');
+      renderBag();
+    });
+    $('bag-btn').addEventListener('click', openBag);
+    $('bag-close').addEventListener('click', closeBag);
+    $('bag-modal').addEventListener('click', (e) => { if (e.target.id === 'bag-modal') closeBag(); });
+
+    function giveLoot(id) {
+      const item = GEAR[id];
+      state.gotLoot = true;
+      state.owned.add(id);
+      state.equip[item.slot] = id;          // 直接換上新裝備
+      const pc = center(state.p);
+      burst(pc.x, pc.y, 10, ['#fff'], { emoji: ['✨', '⭐'], speed: .09, life: 900 });
+      addFx({ kind: 'ring', x: pc.x, y: pc.y, color: '#f5b82e', r: 40, dur: 600 });
+      addFx({ kind: 'pop', emoji: item.icon, x: pc.x, y: pc.y - 46, size: 30, dur: 1400 });
+      sound('equip');
+      $('loot-knight').src = knightImage(state.equip).src;
+      $('loot-name').textContent = `${item.icon} ${item.name}（${SLOT_NAMES[item.slot]}）`;
+      $('loot').hidden = false;
+      $('loot').classList.remove('show'); void $('loot').offsetWidth; $('loot').classList.add('show');
+      bump('bag-btn');
     }
 
     function onNext() {
@@ -2229,6 +2488,12 @@
         <div class="stat"><div class="num">${state.beastsDone}</div><div class="lbl">打倒的野獸</div></div>
         <div class="stat"><div class="num">${state.perfect} / ${state.asked}</div><div class="lbl">一次就算對的題目</div></div>
         <div class="stat"><div class="num">🪙 ${state.coins}</div><div class="lbl">收集的金幣</div></div>`;
+
+      $('result-knight').src = knightImage(state.equip).src;
+      const eq = state.equip;
+      const gotCount = Object.values(GEAR_TRACKS).flat().filter(id => state.owned.has(id)).length;
+      $('result-gear').innerHTML = [eq.helmet, eq.cape, eq.weapon].filter(Boolean).map(id => `${GEAR[id].icon} ${GEAR[id].name}`).join('<br>')
+        + `<br><span class="lbl">一共收集到 ${gotCount} 件新裝備</span>`;
 
       const review = $('review');
       review.innerHTML = '';
@@ -2510,6 +2775,8 @@
           roar:  { wave: 'sawtooth', vol: 0.08, notes: [[140, 0.18], [110, 0.3]] },
           slash: { wave: 'sawtooth', vol: 0.07, notes: [[900, 0.04], [500, 0.08]] },
           swing: { wave: 'sawtooth', vol: 0.05, notes: [[1200, 0.03], [800, 0.04], [450, 0.06]] },
+          bow:   { wave: 'triangle', vol: 0.09, notes: [[320, 0.04], [220, 0.08], [160, 0.1]] },
+          equip: { wave: 'sine', vol: 0.12, notes: [[660, 0.08], [880, 0.08], [1175, 0.08], [1568, 0.25]] },
           hit:   { wave: 'square', vol: 0.08, notes: [[180, 0.06], [90, 0.12]] },
           claw:  { wave: 'sawtooth', vol: 0.08, notes: [[520, 0.05], [300, 0.06], [180, 0.1]] },
           good:  { wave: 'sine', notes: [[523, 0.1], [659, 0.1], [784, 0.18]] },
@@ -2596,6 +2863,7 @@
     const digitOf = (e) => /^[0-9]$/.test(e.key) ? e.key : (imeKey(e) && /^(Digit|Numpad)[0-9]$/.test(e.code) ? e.code.slice(-1) : null);
 
     document.addEventListener('keydown', (e) => {
+      if (!$('bag-modal').hidden) { if (e.key === 'Escape') closeBag(); return; }
       if (!state || !$('game-screen').classList.contains('active') || !$('quit-modal').hidden) return;
       if (e.target && e.target.tagName === 'INPUT') return;
       $('focus-tip').hidden = true;
