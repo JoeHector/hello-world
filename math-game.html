@@ -117,7 +117,11 @@
     body.playing { overflow: hidden; }
     #game-screen.active { position: fixed; inset: 0; z-index: 10; display: block; animation: none; background: #5fa83a; }
     .stage { position: absolute; inset: 0; user-select: none; -webkit-user-select: none; touch-action: none; }
-    .stage canvas#view { display: block; width: 100%; height: 100%; }
+    .stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+    .stage canvas#view3d { display: none; }
+    .stage.three canvas#view3d { display: block; }
+    .view-note { margin-top: 8px; font-size: .85rem; color: var(--muted); }
+    .opt:disabled { opacity: .45; cursor: not-allowed; }
 
     .hud {
       position: absolute; z-index: 4; top: calc(10px + env(safe-area-inset-top, 0px));
@@ -485,6 +489,15 @@
         </div>
       </div>
 
+      <div class="card">
+        <h2>⑤ 遊戲畫面</h2>
+        <div class="options two" data-group="view">
+          <button class="opt selected" data-value="3d"><span class="big">🧊</span>類 3D<small>立體的樹、房子和城堡</small></button>
+          <button class="opt" data-value="2d"><span class="big">🗺️</span>平面 2D<small>比較省電、舊裝置更順</small></button>
+        </div>
+        <p class="view-note" id="view-note" hidden>這台裝置不支援 3D 畫面，會用平面 2D 來玩。</p>
+      </div>
+
       <button class="btn" id="start-btn">產生地圖，出發！⚔️</button>
       <p class="best" id="best-text"></p>
       <p class="best" id="gear-progress"></p>
@@ -493,6 +506,7 @@
     <!-- 冒險畫面（全螢幕） -->
     <section class="screen" id="game-screen" tabindex="-1">
       <div class="stage" id="stage">
+        <canvas id="view3d" aria-hidden="true"></canvas>
         <canvas id="view"></canvas>
       </div>
 
@@ -662,11 +676,13 @@
     </div>
   </div>
 
+  <!-- 3D 畫面用的 three.js；載入失敗時遊戲會自動改用平面 2D -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // =====================================================================
     // 設定
     // =====================================================================
-    const settings = { mode: 'add', level: 10, layout: 'h', count: 8, name: '小騎士' };
+    const settings = { mode: 'add', level: 10, layout: 'h', count: 8, name: '小騎士', view: '3d' };
     const TS = 44;              // 一格幾像素
     const STEP_MS = 150;        // 騎士走一格的時間
     const BEAST_STEP_MS = 320;  // 野獸走一格的時間
@@ -979,7 +995,8 @@
         group.querySelectorAll('.opt').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         const key = group.dataset.group;
-        settings[key] = (key === 'mode' || key === 'layout') ? btn.dataset.value : Number(btn.dataset.value);
+        settings[key] = (key === 'mode' || key === 'layout' || key === 'view') ? btn.dataset.value : Number(btn.dataset.value);
+        if (key === 'view') { try { localStorage.setItem('knight-view', settings.view); } catch (e) {} }
         sound('tap');
         showBest();
       });
@@ -1283,6 +1300,12 @@
       heldDirs.length = 0;
 
       paintStatic();
+      state.three = settings.view === '3d' && R3.supported();
+      if (state.three) {
+        try { R3.build(world); }
+        catch (err) { console.warn('3D 畫面建立失敗，改用 2D', err); state.three = false; }
+      }
+      $('stage').classList.toggle('three', state.three);
       reveal();
       $('encounter').hidden = true;
       $('controls').hidden = false;
@@ -1495,6 +1518,7 @@
         view.width = Math.round(cw * DPR);
         view.height = Math.round(ch * DPR);
       }
+      if (state.three) { R3.render(now, dt); drawOverlay3D(now); return; }
       const g = vctx;
       const { W, H } = state.world;
       const mapW = W * TS, mapH = H * TS;
@@ -1628,7 +1652,7 @@
       }
     }
 
-    function drawFx(g, now) {
+    function drawFx(g, now, xform) {
       state.fx = state.fx.filter(f => now - f.t0 < (f.life || f.dur || 600));
       for (const f of state.fx) {
         const t = now - f.t0;
@@ -1636,6 +1660,7 @@
         const life = f.life || f.dur || 600;
         const k = t / life;
         g.save();
+        if (xform) xform(g, f.x, f.y, f.kind === 'pop' || f.kind === 'dmg' ? .9 : .45);
         switch (f.kind) {
           case 'spark': {
             const x = f.x + f.vx * t, y = f.y + f.vy * t + .5 * f.grav * t * t;
@@ -1740,7 +1765,8 @@
       g.fillText(text, x, y + 1);
     }
 
-    function drawKnight(g, pos, now) {
+    // 騎士這一刻的姿勢：位置偏移（世界像素）、旋轉、上下晃動
+    function knightPose(now) {
       const p = state.p;
       let ox = 0, oy = 0, rot = 0;
       // 攻擊：往後蓄力 → 衝上前揮劍 → 退回原位
@@ -1771,6 +1797,13 @@
       // 戰鬥中擺好架勢，輕輕上下晃
       const fighting = state.active && state.active.type === 'beast';
       const bob = p.moving ? Math.abs(Math.sin(now / 70)) * -3 : fighting ? Math.sin(now / 220) * 1.5 : 0;
+      return { ox: ox + shake, oy, rot, bob, hurtAge };
+    }
+
+    function drawKnight(g, pos, now) {
+      const p = state.p;
+      const { ox, oy, rot, bob, hurtAge } = knightPose(now);
+      const shake = 0;
       const x = pos.x * TS + TS / 2 + ox + shake;
       const y = pos.y * TS + TS / 2 + oy;
       shadow(g, x, y + 18, 13);
@@ -1792,27 +1825,25 @@
       label(g, settings.name, x, y - 30, '#3a2e22', 'rgba(255,255,255,.88)');
     }
 
-    function drawEnt(g, e, pos, now) {
+    // 村民、野獸、寶箱這一刻的姿勢；回傳 null 表示已經消失
+    function entPose(e, pos, now) {
       let x = pos.x * TS + TS / 2, y = pos.y * TS + TS / 2;
-      let alpha = 1, scale = 1;
+      let alpha = 1, scale = 1, lift = 0;
       if (e.type === 'chest') {
         if (e.done) {
           const k = (now - e.doneT) / 600;
-          if (k >= 1) { e.gone = true; return; }
-          alpha = 1 - k; y -= k * 20;
+          if (k >= 1) { e.gone = true; return null; }
+          alpha = 1 - k; lift = k * 20;
         }
-        g.globalAlpha = alpha;
-        emoji(g, e.done ? '✨' : '🎁', x, y + Math.sin(now / 300 + e.x) * 2, TS * .6);
-        g.globalAlpha = 1;
-        return;
+        return { x, y, alpha, scale, rot: 0, lift, bob: Math.sin(now / 300 + e.x) * 2, hitAge: -1 };
       }
       let rot = 0;
       const dx = Math.sign(state.p.x - e.x), dy = Math.sign(state.p.y - e.y);
       // 被打倒：一邊轉圈一邊縮小消失
       if (e.type === 'beast' && e.done) {
         const k = Math.max(0, (now - e.doneT) / 700);
-        if (k >= 1) { e.gone = true; return; }
-        alpha = 1 - k; scale = 1 - k * .7; rot = k * Math.PI * 3; y -= k * 12;
+        if (k >= 1) { e.gone = true; return null; }
+        alpha = 1 - k; scale = 1 - k * .7; rot = k * Math.PI * 3; lift = k * 12;
       }
       // 出場時大吼一聲（放大一下）
       if (e.introT && now - e.introT < 520 && now >= e.introT) scale *= 1 + .28 * Math.sin(Math.PI * (now - e.introT) / 520);
@@ -1835,7 +1866,21 @@
         }
       }
       // 戰鬥中晃動
-      if (state.active === e && !e.done) y += Math.sin(now / 260 + 1) * 2;
+      const bob = state.active === e && !e.done ? Math.sin(now / 260 + 1) * 2 : 0;
+      return { x, y, alpha, scale, rot, lift, bob, hitAge };
+    }
+
+    function drawEnt(g, e, pos, now) {
+      const P = entPose(e, pos, now);
+      if (!P) return;
+      if (e.type === 'chest') {
+        g.globalAlpha = P.alpha;
+        emoji(g, e.done ? '✨' : '🎁', P.x, P.y - P.lift + P.bob, TS * .6);
+        g.globalAlpha = 1;
+        return;
+      }
+      let { x, alpha, scale, rot, hitAge } = P;
+      let y = P.y - P.lift + P.bob;
       const boss = e.beast && e.beast.boss;
       const size = (boss ? TS * 1.45 : e.type === 'beast' ? TS * .95 : TS * .85) * scale;
       shadow(g, x, y + (boss ? 22 : 16), boss ? 22 : 13);
@@ -1866,6 +1911,434 @@
         else label(g, '✅', x, top, '#2fa85c', 'rgba(255,255,255,.9)');
       } else if (!e.done) {
         label(g, e.beast.name, x, top, '#fff', 'rgba(184,48,63,.9)');
+      }
+    }
+
+
+    // =====================================================================
+    // 類 3D 畫面（three.js）
+    // 地圖鋪在 XZ 平面上，1 格 = 1 單位；樹、石頭、房子、城堡是立體模型，
+    // 騎士、村民、野獸是永遠面向鏡頭的圖片（像很多 2.5D 遊戲一樣）。
+    // =====================================================================
+    const R3 = (() => {
+      const canvas = $('view3d');
+      let renderer = null, scene = null, camera = null, supportedCache = null, groundTex = null, blob = null;
+      let knight = null, knightShadow = null, knightCanvas = null, knightTex = null, knightKey = '';
+      const sprites = new Map();
+      const focus = { x: 0, z: 0, init: false };
+      const texCache = {};
+      const V = () => new THREE.Vector3();
+
+      function supported() {
+        if (supportedCache !== null) return supportedCache;
+        try {
+          const c = document.createElement('canvas');
+          supportedCache = !!(window.THREE && window.WebGLRenderingContext && (c.getContext('webgl') || c.getContext('experimental-webgl')));
+        } catch (e) { supportedCache = false; }
+        return supportedCache;
+      }
+
+      // 把 emoji 畫成貼圖
+      function emojiTex(ch) {
+        if (texCache[ch]) return texCache[ch];
+        const c = document.createElement('canvas');
+        c.width = c.height = 128;
+        const g = c.getContext('2d');
+        g.font = `100px ${EMOJI_FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(ch, 64, 70);
+        return (texCache[ch] = new THREE.CanvasTexture(c));
+      }
+      // 圓形的柔和影子
+      function blobTex() {
+        if (blob) return blob;
+        const c = document.createElement('canvas');
+        c.width = c.height = 64;
+        const g = c.getContext('2d');
+        const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+        gr.addColorStop(0, 'rgba(0,0,0,.45)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+        return (blob = new THREE.CanvasTexture(c));
+      }
+
+      // 地面貼圖：草地、泥土路、河、木橋、花（樹和石頭另外用立體模型）
+      function groundCanvas(world) {
+        const { W, H, tiles, vari } = world, P = 32;
+        const c = document.createElement('canvas');
+        c.width = W * P; c.height = H * P;
+        const g = c.getContext('2d');
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const t = tiles[y][x], r = vari[y][x], px = x * P, py = y * P;
+          if (t === T.WATER || t === T.BRIDGE) {
+            g.fillStyle = '#4fa9e2'; g.fillRect(px, py, P, P);
+            g.strokeStyle = '#8fd0f5'; g.lineWidth = 2;
+            g.beginPath(); g.arc(px + 9 + r * 10, py + 11 + r * 8, 4.5, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+          } else if (t === T.PATH || t === T.GATE) {
+            g.fillStyle = '#e3c48b'; g.fillRect(px, py, P, P);
+            g.fillStyle = '#cfae6f'; g.fillRect(px + 6 + r * 14, py + 7 + r * 12, 2.5, 2.5); g.fillRect(px + 19 - r * 7, py + 22 - r * 9, 2.5, 2.5);
+          } else if (t === T.CASTLE) {
+            g.fillStyle = '#bdb6a4'; g.fillRect(px, py, P, P);
+          } else {
+            g.fillStyle = t === T.TREE ? ((x + y) % 2 ? '#6faf48' : '#69a944') : ((x + y) % 2 ? '#93d062' : '#8cca5b');
+            g.fillRect(px, py, P, P);
+            if (t === T.FLOWER) {
+              const cols = ['#fff3a0', '#ff8fb1', '#ffffff', '#ffb347'];
+              for (let k = 0; k < 3; k++) { g.fillStyle = cols[(k + Math.floor(r * 4)) % 4]; g.beginPath(); g.arc(px + 7 + ((r * 97 + k * 9) % 18), py + 8 + ((r * 53 + k * 7) % 16), 2.6, 0, Math.PI * 2); g.fill(); }
+            }
+          }
+          if (t === T.BRIDGE) {
+            const horiz = (x > 0 && tiles[y][x - 1] !== T.WATER) || (x < W - 1 && tiles[y][x + 1] !== T.WATER);
+            g.fillStyle = '#c08a52';
+            g.fillRect(px + (horiz ? 0 : 4), py + (horiz ? 4 : 0), horiz ? P : P - 8, horiz ? P - 8 : P);
+            g.strokeStyle = '#8e5f30'; g.lineWidth = 1.5; g.beginPath();
+            for (let k = 6; k < P; k += 7) { if (horiz) { g.moveTo(px + k, py + 4); g.lineTo(px + k, py + P - 4); } else { g.moveTo(px + 4, py + k); g.lineTo(px + P - 4, py + k); } }
+            g.stroke();
+          }
+        }
+        return c;
+      }
+
+      function disposeScene() {
+        if (!scene) return;
+        scene.traverse(o => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+        });
+        if (groundTex) groundTex.dispose();
+        if (knightTex) knightTex.dispose();
+      }
+
+      const lambert = (color) => new THREE.MeshLambertMaterial({ color });
+
+      // 很多棵樹、很多顆石頭用 InstancedMesh 一次畫完，手機也跑得動
+      function instanced(geo, items, place) {
+        if (!items.length) return;
+        const mesh = new THREE.InstancedMesh(geo, lambert(0xffffff), items.length);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = V(), pos = V(), col = new THREE.Color();
+        items.forEach((it, i) => { place(it, pos, q, sc, col); m.compose(pos, q, sc); mesh.setMatrixAt(i, m); mesh.setColorAt(i, col); });
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        scene.add(mesh);
+      }
+
+      function build(world) {
+        if (!renderer) {
+          renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+          renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+        }
+        disposeScene();
+        sprites.clear();
+        focus.init = false;
+        knightKey = '';
+        const { W, H, tiles, vari } = world;
+
+        scene = new THREE.Scene();
+        const sky = new THREE.Color('#bfe6ff');
+        scene.background = sky;
+        scene.fog = new THREE.Fog(sky, 20, 45);
+        camera = new THREE.PerspectiveCamera(40, 1, .1, 200);
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x3f5f2a, .6));
+        const sun = new THREE.DirectionalLight(0xfff1d6, .5);
+        sun.position.set(-8, 14, 10);
+        scene.add(sun);
+
+        // 遠處的地面，讓地圖邊緣看起來是一大片森林
+        const far = new THREE.Mesh(new THREE.PlaneGeometry(W + 160, H + 160), lambert('#4f8f34'));
+        far.rotation.x = -Math.PI / 2; far.position.set(W / 2, -.03, H / 2);
+        scene.add(far);
+
+        groundTex = new THREE.CanvasTexture(groundCanvas(world));
+        groundTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshLambertMaterial({ map: groundTex }));
+        ground.rotation.x = -Math.PI / 2; ground.position.set(W / 2, 0, H / 2);
+        scene.add(ground);
+
+        const pines = [], rounds = [], rocks = [], houses = [], bridges = [];
+        for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+          const t = tiles[y][x], r = vari[y][x];
+          if (t === T.TREE) (r < .55 ? rounds : pines).push({ x, y, r });
+          else if (t === T.ROCK) rocks.push({ x, y, r });
+          else if (t === T.HOUSE) houses.push({ x, y, r });
+          else if (t === T.BRIDGE) bridges.push({ x, y });
+        }
+        const trees = [...pines, ...rounds];
+        const spot = (it, pos, q, sc, s) => {
+          pos.set(it.x + .5 + (it.r - .5) * .2, 0, it.y + .5 + (((it.r * 7) % 1) - .5) * .2);
+          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), it.r * 6.28);
+          sc.setScalar(s);
+        };
+        // 樹幹
+        instanced(new THREE.CylinderGeometry(.07, .1, .45, 6).translate(0, .22, 0), trees, (it, pos, q, sc, col) => {
+          spot(it, pos, q, sc, .85 + it.r * .35); col.set('#7a4a2a');
+        });
+        // 松樹：兩層圓錐
+        instanced(new THREE.ConeGeometry(.4, .75, 7).translate(0, .7, 0), pines, (it, pos, q, sc, col) => {
+          spot(it, pos, q, sc, .85 + it.r * .35); col.setHSL(.36, .5, .28 + it.r * .08);
+        });
+        instanced(new THREE.ConeGeometry(.3, .6, 7).translate(0, 1.08, 0), pines, (it, pos, q, sc, col) => {
+          spot(it, pos, q, sc, .85 + it.r * .35); col.setHSL(.36, .5, .33 + it.r * .08);
+        });
+        // 圓圓的大樹
+        instanced(new THREE.IcosahedronGeometry(.44, 0).translate(0, .82, 0), rounds, (it, pos, q, sc, col) => {
+          spot(it, pos, q, sc, .85 + it.r * .35); col.setHSL(.27, .5, .42 + it.r * .1);
+        });
+        // 石頭
+        instanced(new THREE.DodecahedronGeometry(.27, 0).translate(0, .12, 0), rocks, (it, pos, q, sc, col) => {
+          spot(it, pos, q, sc, .8 + it.r * .4); sc.y *= .7; col.setHSL(.1, .05, .55 + it.r * .1);
+        });
+        // 木橋兩邊的欄杆
+        bridges.forEach(b => {
+          const horiz = (b.x > 0 && tiles[b.y][b.x - 1] !== T.WATER) || (b.x < W - 1 && tiles[b.y][b.x + 1] !== T.WATER);
+          for (const side of [-1, 1]) {
+            const rail = new THREE.Mesh(new THREE.BoxGeometry(horiz ? 1 : .07, .14, horiz ? .07 : 1), lambert('#8e5f30'));
+            rail.position.set(b.x + .5 + (horiz ? 0 : side * .38), .1, b.y + .5 + (horiz ? side * .38 : 0));
+            scene.add(rail);
+          }
+        });
+        // 村莊的房子
+        houses.forEach(h => {
+          const body = new THREE.Mesh(new THREE.BoxGeometry(.8, .55, .75), lambert('#f3e2c0'));
+          body.position.set(h.x + .5, .275, h.y + .5);
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(.66, .45, 4), lambert('#d2694a'));
+          roof.rotation.y = Math.PI / 4; roof.position.set(h.x + .5, .78, h.y + .5);
+          const door = new THREE.Mesh(new THREE.BoxGeometry(.18, .3, .02), lambert('#7a4a2a'));
+          door.position.set(h.x + .5, .15, h.y + .885);
+          scene.add(body, roof, door);
+        });
+        // 水晶城堡
+        const c = world.castle, cx = c.x + 1, cz = c.y + 1;
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.2, 1.9), lambert('#e4dff0'));
+        wall.position.set(cx, .6, cz);
+        const keep = new THREE.Mesh(new THREE.BoxGeometry(.95, .7, .95), lambert('#d6cfe8'));
+        keep.position.set(cx, 1.55, cz);
+        const keepRoof = new THREE.Mesh(new THREE.ConeGeometry(.75, .8, 4), lambert('#9b6bff'));
+        keepRoof.rotation.y = Math.PI / 4; keepRoof.position.set(cx, 2.3, cz);
+        scene.add(wall, keep, keepRoof);
+        for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+          const tower = new THREE.Mesh(new THREE.CylinderGeometry(.3, .33, 1.8, 10), lambert('#efeaf8'));
+          tower.position.set(cx + dx * .85, .9, cz + dz * .85);
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(.4, .65, 10), lambert('#7f52e6'));
+          roof.position.set(cx + dx * .85, 2.12, cz + dz * .85);
+          const flag = new THREE.Mesh(new THREE.BoxGeometry(.02, .16, .26), lambert('#e0485a'));
+          flag.position.set(cx + dx * .85, 2.55, cz + dz * .85 + .13);
+          scene.add(tower, roof, flag);
+        }
+        const door = new THREE.Mesh(new THREE.BoxGeometry(.04, .62, .52), lambert('#5b3a1e'));
+        door.position.set(c.x - .01, .31, world.gate.y + .5);
+        scene.add(door);
+
+        // 人物、野獸、寶箱：面向鏡頭的圖片 + 影子 + 地上的光圈
+        state.ents.forEach(e => {
+          const grp = new THREE.Group();
+          const shadowMesh = new THREE.Mesh(new THREE.PlaneGeometry(.8, .8), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false }));
+          shadowMesh.rotation.x = -Math.PI / 2; shadowMesh.position.y = .015;
+          grp.add(shadowMesh);
+          let ring = null;
+          if (e.type !== 'chest') {
+            ring = new THREE.Mesh(new THREE.RingGeometry(.36, .46, 28), new THREE.MeshBasicMaterial({ color: e.type === 'beast' ? 0xe0485a : 0xf5b82e, transparent: true, opacity: .85, depthWrite: false }));
+            ring.rotation.x = -Math.PI / 2; ring.position.y = .02;
+            grp.add(ring);
+          }
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e.type === 'chest' ? '🎁' : e.icon), transparent: true, depthWrite: false }));
+          sp.center.set(.5, .1);
+          grp.add(sp);
+          scene.add(grp);
+          const base = e.type === 'chest' ? .6 : e.beast && e.beast.boss ? 1.55 : e.type === 'beast' ? 1.05 : .95;
+          if (e.beast && e.beast.boss) { shadowMesh.scale.setScalar(1.6); ring.scale.setScalar(1.5); }
+          sprites.set(e, { grp, sp, ring, base, chestOpen: false });
+        });
+
+        // 小騎士
+        knightCanvas = document.createElement('canvas');
+        knightCanvas.width = 160; knightCanvas.height = Math.round(160 / KNIGHT_ASPECT);
+        knightTex = new THREE.CanvasTexture(knightCanvas);
+        knight = new THREE.Sprite(new THREE.SpriteMaterial({ map: knightTex, transparent: true, depthWrite: false }));
+        knight.center.set(.5, .05);
+        knight.scale.set(1.1 * KNIGHT_ASPECT, 1.1, 1);
+        knightShadow = new THREE.Mesh(new THREE.PlaneGeometry(.8, .8), new THREE.MeshBasicMaterial({ map: blobTex(), transparent: true, depthWrite: false }));
+        knightShadow.rotation.x = -Math.PI / 2;
+        scene.add(knight, knightShadow);
+      }
+
+      // 換裝備或轉身時，重畫騎士的貼圖
+      function updateKnightTexture() {
+        const p = state.p;
+        const img = knightImage(state.equip);
+        if (!(img.complete && img.naturalWidth)) return;
+        const key = img.src.length + '|' + state.equip.helmet + state.equip.cape + state.equip.weapon + '|' + (p.face < 0 ? 'L' : 'R');
+        if (key === knightKey) return;
+        knightKey = key;
+        const g = knightCanvas.getContext('2d');
+        g.clearRect(0, 0, knightCanvas.width, knightCanvas.height);
+        g.save();
+        if (p.face < 0) { g.translate(knightCanvas.width, 0); g.scale(-1, 1); }
+        g.drawImage(img, 0, 0, knightCanvas.width, knightCanvas.height);
+        g.restore();
+        knightTex.needsUpdate = true;
+      }
+
+      const tint = (mat, hurt) => mat.color.setRGB(1, hurt ? .55 : 1, hurt ? .55 : 1);
+
+      function render(now, dt) {
+        const cw = canvas.clientWidth, ch = canvas.clientHeight;
+        if (!cw || !ch) return;
+        const pr = Math.min(2, window.devicePixelRatio || 1);
+        if (canvas.width !== Math.round(cw * pr) || canvas.height !== Math.round(ch * pr)) renderer.setSize(cw, ch, false);
+
+        // 騎士
+        updateKnightTexture();
+        const p = state.p;
+        const pp = lerpPos(p, now, STEP_MS);
+        const kp = knightPose(now);
+        const kx = (pp.x * TS + TS / 2 + kp.ox) / TS, kz = (pp.y * TS + TS / 2 + kp.oy) / TS;
+        knight.position.set(kx, -kp.bob / TS, kz);
+        knight.material.rotation = -kp.rot * (p.face < 0 ? -1 : 1);
+        tint(knight.material, kp.hurtAge >= 0 && kp.hurtAge < 450);
+        knightShadow.position.set(kx, .016, kz);
+
+        // 村民、野獸、寶箱
+        sprites.forEach((o, e) => {
+          if (e.gone) { o.grp.visible = false; return; }
+          const P = entPose(e, lerpPos(e, now, BEAST_STEP_MS), now);
+          if (!P) { o.grp.visible = false; return; }
+          o.grp.visible = true;
+          o.grp.position.set(P.x / TS, 0, P.y / TS);
+          o.sp.position.y = (P.lift - P.bob) / TS;
+          const s = o.base * P.scale;
+          o.sp.scale.set(s, s, 1);
+          o.sp.material.opacity = P.alpha;
+          o.sp.material.rotation = -P.rot;
+          tint(o.sp.material, P.hitAge >= 0 && P.hitAge < 260);
+          if (e.type === 'chest' && e.done && !o.chestOpen) { o.sp.material.map = emojiTex('✨'); o.sp.material.needsUpdate = true; o.chestOpen = true; }
+          if (o.ring) {
+            o.ring.visible = !e.done;
+            const pulse = state.active === e ? 1 + .12 * Math.sin(now / 180) : 1;
+            o.ring.scale.setScalar((e.beast && e.beast.boss ? 1.5 : 1) * pulse);
+          }
+        });
+
+        // 鏡頭：從騎士的斜後上方往下看；遇到村民或野獸時對準兩個人中間
+        let fx = pp.x + .5, fz = pp.y + .5;
+        if (state.active) { fx = (fx + state.active.x + .5) / 2; fz = (fz + state.active.y + .5) / 2; }
+        if (!focus.init) { focus.x = fx; focus.z = fz; focus.init = true; }
+        const ease = Math.min(1, dt * 6);
+        focus.x += (fx - focus.x) * ease;
+        focus.z += (fz - focus.z) * ease;
+        const aspect = cw / ch;
+        const tanH = Math.tan(camera.fov * Math.PI / 360);
+        const half = aspect < 1 ? 3.5 : 6.5;                 // 左右大約看得到幾格（手機直拿時近一點）
+        const d = clamp(half / (tanH * aspect), 9, 24);
+        const pitch = 55 * Math.PI / 180;
+        let jx = 0, jz = 0;
+        if (state.shake) {
+          const k = (now - state.shake.t0) / state.shake.dur;
+          if (k >= 1) state.shake = null;
+          else { const m = state.shake.mag * (1 - k) / TS; jx = (Math.random() - .5) * 2 * m; jz = (Math.random() - .5) * 2 * m; }
+        }
+        camera.aspect = aspect;
+        camera.position.set(focus.x + jx, d * Math.sin(pitch), focus.z + d * Math.cos(pitch) + jz);
+        camera.lookAt(focus.x + jx, 0, focus.z + jz);
+        scene.fog.near = d * .95; scene.fog.far = d * 2.4;
+
+        // 題目面板蓋住的地方不算：把畫面中心移到看得到的範圍中間
+        let x0 = 0, x1 = cw, y0 = 0, y1 = ch;
+        const sheet = $('encounter');
+        if (!sheet.hidden) {
+          const r = sheet.getBoundingClientRect();
+          y0 = $('goals').getBoundingClientRect().bottom;
+          if (r.width < cw * .75) x1 = Math.max(cw * .3, r.left);
+          else y1 = Math.max(y0 + ch * .15, r.top);
+        }
+        camera.setViewOffset(cw, ch, cw / 2 - (x0 + x1) / 2, ch / 2 - (y0 + y1) / 2, cw, ch);
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+      }
+
+      // 世界座標（像素）＋高度（格）→ 螢幕座標；s 是那個位置「1 世界像素 = 幾個螢幕像素」
+      let tmpA = null, tmpB = null;   // 用到時才建立：沒有載入 three.js 時不能先 new
+      function project(xPx, yPx, h) {
+        if (!tmpA) { tmpA = V(); tmpB = V(); }
+        const cw = canvas.clientWidth, ch = canvas.clientHeight;
+        tmpA.set(xPx / TS, h, yPx / TS).project(camera);
+        tmpB.set(xPx / TS + 1, h, yPx / TS).project(camera);
+        const x = (tmpA.x + 1) / 2 * cw, y = (1 - tmpA.y) / 2 * ch;
+        const x2 = (tmpB.x + 1) / 2 * cw, y2 = (1 - tmpB.y) / 2 * ch;
+        return { x, y, s: Math.hypot(x2 - x, y2 - y) / TS, behind: tmpA.z > 1 };
+      }
+
+      return { supported, build, render, project, get ready() { return !!renderer; } };
+    })();
+
+    // 3D 模式：名牌、城門圖示、打鬥特效、飄字畫在上面一層的 2D 畫布
+    function drawOverlay3D(now) {
+      const g = vctx;
+      const cw = view.clientWidth, ch = view.clientHeight;
+      g.setTransform(DPR, 0, 0, DPR, 0, 0);
+      g.clearRect(0, 0, cw, ch);
+
+      // 城門
+      const gate = state.world.gate;
+      const gp = R3.project(gate.x * TS + TS / 2, gate.y * TS + TS / 2, .45);
+      if (!gp.behind) {
+        const size = clamp(TS * .55 * gp.s, 14, 40);
+        if (state.gateOpen) emoji(g, '✨', gp.x, gp.y + Math.sin(now / 250) * 3, size);
+        else emoji(g, '🔒', gp.x, gp.y, size);
+      }
+
+      // 名牌
+      state.ents.forEach(e => {
+        if (e.gone || e.type === 'chest') return;
+        const P = entPose(e, lerpPos(e, now, BEAST_STEP_MS), now);
+        if (!P) return;
+        const boss = e.beast && e.beast.boss;
+        // 圖片永遠面向鏡頭，所以用「腳底在螢幕上的位置 − 圖片在螢幕上的高度」放名牌
+        const base = boss ? 1.55 : e.type === 'beast' ? 1.05 : .95;
+        const fp = R3.project(P.x, P.y, (P.lift - P.bob) / TS);
+        if (fp.behind) return;
+        const ly = fp.y - base * P.scale * .92 * TS * fp.s - 8;
+        if (e.type === 'npc') {
+          if (!e.done) label(g, '❗ 需要幫忙', fp.x, ly + Math.sin(now / 250) * 2, '#3a2e22', 'rgba(255,240,200,.95)');
+          else label(g, '✅', fp.x, ly, '#2fa85c', 'rgba(255,255,255,.9)');
+        } else if (!e.done) label(g, e.beast.name, fp.x, ly, '#fff', 'rgba(184,48,63,.9)');
+      });
+      const pp = lerpPos(state.p, now, STEP_MS), kp = knightPose(now);
+      const kf = R3.project(pp.x * TS + TS / 2 + kp.ox, pp.y * TS + TS / 2 + kp.oy, -kp.bob / TS);
+      label(g, settings.name, kf.x, kf.y - 1.1 * TS * kf.s - 8, '#3a2e22', 'rgba(255,255,255,.88)');
+
+      // 打鬥特效：每個特效以自己的位置為中心，換算成螢幕上的大小
+      drawFx(g, now, (gg, ax, ay, h) => {
+        const P = R3.project(ax, ay, h);
+        const sc = P.s;
+        gg.setTransform(DPR * sc, 0, 0, DPR * sc, DPR * (P.x - ax * sc), DPR * (P.y - ay * sc));
+      });
+
+      // 飄起來的文字
+      state.effects = state.effects.filter(f => now - f.t0 < 1100);
+      state.effects.forEach(f => {
+        const k = (now - f.t0) / 1100;
+        const P = R3.project(f.x, f.y + TS / 2, .9);
+        g.setTransform(DPR, 0, 0, DPR, 0, 0);
+        g.globalAlpha = 1 - k;
+        g.font = 'bold 18px "PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif';
+        g.textAlign = 'center';
+        g.lineWidth = 4; g.strokeStyle = '#fff';
+        g.strokeText(f.text, P.x, P.y - k * 40);
+        g.fillStyle = f.color;
+        g.fillText(f.text, P.x, P.y - k * 40);
+        g.globalAlpha = 1;
+      });
+
+      // 被打到時的紅光
+      g.setTransform(DPR, 0, 0, DPR, 0, 0);
+      if (state.flash) {
+        const k = (now - state.flash.t0) / 450;
+        if (k >= 1) state.flash = null;
+        else if (k >= 0) {
+          const grad = g.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * .3, cw / 2, ch / 2, Math.max(cw, ch) * .75);
+          grad.addColorStop(0, 'rgba(224,72,90,0)');
+          grad.addColorStop(1, `rgba(224,72,90,${.55 * (1 - k)})`);
+          g.fillStyle = grad;
+          g.fillRect(0, 0, cw, ch);
+        }
       }
     }
 
@@ -3003,6 +3476,17 @@
     $('quit-yes').addEventListener('click', () => {
       sound('tap'); $('quit-modal').hidden = true; stopGame(); showBest(); showScreen('start-screen');
     });
+
+    // 遊戲畫面選項：記住上次的選擇；不支援 3D 的裝置只能選 2D
+    (function initViewOption() {
+      try { const v = localStorage.getItem('knight-view'); if (v === '2d' || v === '3d') settings.view = v; } catch (e) {}
+      if (!R3.supported()) {
+        settings.view = '2d';
+        document.querySelector('[data-group=view] [data-value="3d"]').disabled = true;
+        $('view-note').hidden = false;
+      }
+      document.querySelectorAll('[data-group=view] .opt').forEach(b => b.classList.toggle('selected', b.dataset.value === settings.view));
+    })();
 
     showBest();
   </script>
