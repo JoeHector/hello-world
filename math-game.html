@@ -219,6 +219,16 @@
       font-weight: bold; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center;
     }
     .gear .gi { font-size: 1.4rem; line-height: 1.2; }
+    .gstars { font-size: .8rem; letter-spacing: 1px; font-weight: bold; }
+    .gstars.t1 { color: #b8743a; }
+    .gstars.t2 { color: #7f8fa6; }
+    .gstars.t3 { color: #d9a400; }
+    .gear .gstars { display: block; }
+    .gear .gwear { display: block; color: var(--green-dark); font-size: .72rem; }
+    .gear .gwhere { display: block; font-size: .66rem; font-weight: normal; color: var(--muted); line-height: 1.3; }
+    .tier-legend { font-size: .8rem; color: var(--muted); line-height: 1.6; background: #fff; border-radius: 10px; padding: 4px 8px; }
+    .opt .loot-tier { margin-top: 4px; font-size: .72rem; }
+    .loot-rank { font-weight: bold; font-size: .9rem; color: var(--accent-dark); }
     .gear.on { border-color: var(--green); background: #e8f8ee; }
     .gear.locked { opacity: .45; cursor: default; }
     .gear:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
@@ -548,10 +558,10 @@
       <div class="card">
         <h2>② 數字多大？</h2>
         <div class="options four" data-group="level">
-          <button class="opt selected" data-value="10">🌱 簡單<small>10 以內</small></button>
-          <button class="opt" data-value="20">🌳 普通<small>20 以內</small></button>
-          <button class="opt" data-value="100">🚀 挑戰<small>100 以內</small></button>
-          <button class="opt" data-value="200">🏆 超級<small>200 以內</small></button>
+          <button class="opt selected" data-value="10">🌱 簡單<small>10 以內</small><small class="loot-tier">🎁 <span class="gstars t1">★</span> 銅級寶物</small></button>
+          <button class="opt" data-value="20">🌳 普通<small>20 以內</small><small class="loot-tier">🎁 <span class="gstars t1">★</span>～<span class="gstars t2">★★</span> 銅、銀級</small></button>
+          <button class="opt" data-value="100">🚀 挑戰<small>100 以內</small><small class="loot-tier">🎁 <span class="gstars t2">★★</span>～<span class="gstars t3">★★★</span> 銀、金級</small></button>
+          <button class="opt" data-value="200">🏆 超級<small>200 以內</small><small class="loot-tier">🎁 <span class="gstars t3">★★★</span> 金級寶物</small></button>
         </div>
       </div>
 
@@ -625,7 +635,8 @@
         <div class="loot-text">
           <div class="loot-title" id="loot-pop-title">🎁 寶箱裡有新裝備！</div>
           <div class="loot-name" id="loot-pop-name"></div>
-          <small>已經換上了，可以在 🎒 背包裡更換</small>
+          <div class="loot-rank" id="loot-pop-rank"></div>
+          <small id="loot-pop-note">已經換上了，可以在 🎒 背包裡更換</small>
         </div>
       </div>
       <div class="focus-tip" id="focus-tip" hidden>⌨️ 點一下畫面，就能用鍵盤方向鍵走路</div>
@@ -706,7 +717,8 @@
             <div class="loot-text">
               <div class="loot-title">🎁 獲得新裝備！</div>
               <div class="loot-name" id="loot-name"></div>
-              <small>已經幫你換上了，可以在 🎒 背包裡更換</small>
+              <div class="loot-rank" id="loot-rank"></div>
+              <small id="loot-note">已經幫你換上了，可以在 🎒 背包裡更換</small>
             </div>
           </div>
           <button class="btn go" id="next-btn" hidden>繼續冒險 ▶</button>
@@ -965,23 +977,23 @@
     // =====================================================================
     const GEAR = {
       'helm-basic':  { slot: 'helmet', name: '新手頭盔', icon: '⛑️', look: { fill: '#c9d3dd', plume: '#e0485a' } },
-      'helm-bronze': { slot: 'helmet', name: '銅製頭盔', icon: '🪖', look: { fill: '#cd8a4a', rivets: true } },
-      'helm-silver': { slot: 'helmet', name: '銀色羽毛頭盔', icon: '🪶', look: { fill: '#eef3f8', plume: '#3d8fd6', tall: true } },
-      'helm-gold':   { slot: 'helmet', name: '黃金王冠頭盔', icon: '👑', look: { fill: '#f5c84a', crown: true } },
-      'cape-red':    { slot: 'cape', name: '紅色披風', icon: '🟥', look: { fill: '#e0485a' } },
-      'cape-blue':   { slot: 'cape', name: '藍色勇者披風', icon: '🟦', look: { fill: '#3d6fd6', trim: '#f5b82e' } },
-      'cape-star':   { slot: 'cape', name: '星空魔法披風', icon: '🌌', look: { fill: '#5b3fa8', trim: '#f5b82e', stars: true } },
+      'helm-bronze': { tier: 1, slot: 'helmet', name: '銅製頭盔', icon: '🪖', look: { fill: '#cd8a4a', rivets: true } },
+      'helm-silver': { tier: 2, slot: 'helmet', name: '銀色羽毛頭盔', icon: '🪶', look: { fill: '#eef3f8', plume: '#3d8fd6', tall: true } },
+      'helm-gold':   { tier: 3, slot: 'helmet', name: '黃金王冠頭盔', icon: '👑', look: { fill: '#f5c84a', crown: true } },
+      'cape-red':    { tier: 1, slot: 'cape', name: '紅色披風', icon: '🟥', look: { fill: '#e0485a' } },
+      'cape-blue':   { tier: 2, slot: 'cape', name: '藍色勇者披風', icon: '🟦', look: { fill: '#3d6fd6', trim: '#f5b82e' } },
+      'cape-star':   { tier: 3, slot: 'cape', name: '星空魔法披風', icon: '🌌', look: { fill: '#5b3fa8', trim: '#f5b82e', stars: true } },
       'sword-iron':  { slot: 'weapon', line: 'sword', name: '鐵劍', icon: '🗡️', look: { blade: '#eef3f7' },
         fx: { slash: ['rgba(255,214,90,.9)', '#fff'], sparks: ['#fff', '#ffd65a', '#f5b82e', '#ffeaa0'] } },
-      'sword-flame': { slot: 'weapon', line: 'sword', name: '火焰劍', icon: '🔥', look: { blade: '#ff8a3d', flame: true },
+      'sword-flame': { tier: 2, slot: 'weapon', line: 'sword', name: '火焰劍', icon: '🔥', look: { blade: '#ff8a3d', flame: true },
         fx: { slash: ['rgba(255,110,30,.9)', '#ffe08a'], sparks: ['#ff6a00', '#ffb347', '#ffd65a'], emoji: '🔥' } },
-      'sword-ice':   { slot: 'weapon', line: 'sword', name: '冰霜劍', icon: '❄️', look: { blade: '#a8e6ff', ice: true },
+      'sword-ice':   { tier: 3, slot: 'weapon', line: 'sword', name: '冰霜劍', icon: '❄️', look: { blade: '#a8e6ff', ice: true },
         fx: { slash: ['rgba(110,200,255,.9)', '#fff'], sparks: ['#bfe9ff', '#fff', '#7fd3ff'], emoji: '❄️' } },
-      'bow-wood':    { slot: 'weapon', line: 'bow', name: '木頭弓箭', icon: '🏹', look: { bow: '#8b5a2b' },
+      'bow-wood':    { tier: 1, slot: 'weapon', line: 'bow', name: '木頭弓箭', icon: '🏹', look: { bow: '#8b5a2b' },
         fx: { arrow: '#6b4a2a', sparks: ['#fff', '#ffd65a', '#c08a52'] } },
-      'bow-elf':     { slot: 'weapon', line: 'bow', name: '精靈弓', icon: '🍃', look: { bow: '#2fa85c' },
+      'bow-elf':     { tier: 2, slot: 'weapon', line: 'bow', name: '精靈弓', icon: '🍃', look: { bow: '#2fa85c' },
         fx: { arrow: '#23854a', trail: 'rgba(123,227,160,.8)', sparks: ['#7be3a0', '#2fa85c', '#fff'], emoji: '🍃' } },
-      'bow-light':   { slot: 'weapon', line: 'bow', name: '光之弓', icon: '✨', look: { bow: '#f5c84a', glow: true },
+      'bow-light':   { tier: 3, slot: 'weapon', line: 'bow', name: '光之弓', icon: '✨', look: { bow: '#f5c84a', glow: true },
         fx: { arrow: '#f5b82e', trail: 'rgba(255,240,170,.95)', sparks: ['#fff', '#fff6c2', '#ffd65a'], emoji: '✨' } },
     };
     const DEFAULT_EQUIP = { helmet: 'helm-basic', cape: null, weapon: 'sword-iron' };
@@ -992,6 +1004,13 @@
       bow:    ['bow-wood', 'bow-elf', 'bow-light'],
     };
     const SLOT_NAMES = { helmet: '頭盔', cape: '披風', weapon: '武器' };
+    // 寶物等級：1 銅級、2 銀級、3 金級（新手裝備是 0）
+    const TIER_NAMES = { 1: '銅級', 2: '銀級', 3: '金級' };
+    const tierOf = (id) => (id && GEAR[id] && GEAR[id].tier) || 0;
+    const tierStars = (t) => '★'.repeat(t);
+    // 難度決定能拿到的寶物等級 [最低, 最高]
+    const LEVEL_TIERS = { 10: [1, 1], 20: [1, 2], 100: [2, 3], 200: [3, 3] };
+    const levelTiers = () => LEVEL_TIERS[settings.level] || [1, 3];
     const LOOT_RATE = 0.6;   // 第一次一定會掉，之後每次 60%
 
     // 騎士圖案（面向右邊）。畫面寬一點（-6 ~ 54），讓披風飄到身體後面時不會被切掉
@@ -2944,10 +2963,9 @@
       addFloat(c.x, c.y, `+${c.coins} 🪙`, '#c58a00');
       toast(`🎁 打開寶箱，得到 ${c.coins} 枚金幣！`);
       sound('coin');
-      const options = ALL_GEAR.length && Object.values(GEAR_TRACKS).map(track => track.find(id => !state.owned.has(id))).filter(Boolean);
-      if (options.length && Math.random() < CHEST_LOOT_RATE) {
-        const id = pick(options);
-        setTimeout(() => { if (state && !state.finished) giveLoot(id, 'chest'); }, 600);
+      const id = pickLoot();
+      if (id && Math.random() < CHEST_LOOT_RATE) {
+        setTimeout(() => { if (state && !state.finished && !state.owned.has(id)) giveLoot(id, 'chest'); }, 600);
       }
     }
 
@@ -3422,10 +3440,23 @@
 
     // 隨機抽一件還沒拿到的裝備（每條路線從低階開始）
     function rollLoot() {
-      const options = Object.values(GEAR_TRACKS).map(track => track.find(id => !state.owned.has(id))).filter(Boolean);
-      if (!options.length) return null;
+      const id = pickLoot();
+      if (!id) return null;
       if (state.gotLoot && Math.random() > LOOT_RATE) return null;
-      return pick(options);
+      return id;
+    }
+
+    // 依照這次冒險的難度挑一件還沒拿到的寶物：
+    // 先從這個難度的等級範圍裡挑；範圍裡都拿過了，才給比較低等級、還沒拿到的寶物（絕不會比範圍高）
+    function pickLoot() {
+      const [lo, hi] = levelTiers();
+      const missing = ALL_GEAR.filter(id => !state.owned.has(id));
+      const inRange = missing.filter(id => tierOf(id) >= lo && tierOf(id) <= hi);
+      if (inRange.length) return pick(inRange);
+      const lower = missing.filter(id => tierOf(id) < lo);
+      if (!lower.length) return null;
+      const best = Math.max(...lower.map(tierOf));
+      return pick(lower.filter(id => tierOf(id) === best));   // 先給剩下裡面最好的
     }
 
     // ---------- 背包 ----------
@@ -3451,16 +3482,18 @@
         cape: [null, ...GEAR_TRACKS.cape],
         weapon: ['sword-iron', ...GEAR_TRACKS.sword, ...GEAR_TRACKS.bow],
       };
-      let html = '';
+      let html = `<p class="tier-legend"><span class="gstars t1">★</span> 銅級：簡單、普通　<span class="gstars t2">★★</span> 銀級：普通、挑戰　<span class="gstars t3">★★★</span> 金級：挑戰、超級</p>`;
       for (const [slot, ids] of Object.entries(slots)) {
         html += `<div class="bag-slot"><h4>${SLOT_NAMES[slot]}</h4><div class="bag-items">`;
         for (const id of ids) {
           const owned = id === null || state.owned.has(id);
           const on = eq[slot] === id;
           const label = id === null ? { icon: '🚫', name: '不穿披風' } : GEAR[id];
+          const t = tierOf(id);
+          const stars = t ? `<span class="gstars t${t}">${tierStars(t)}</span>` : '';
           html += owned
-            ? `<button class="gear${on ? ' on' : ''}" data-slot="${slot}" data-id="${id || ''}" aria-pressed="${on}"><span class="gi">${label.icon}</span>${label.name}${on ? '<br>✅ 穿著' : ''}</button>`
-            : `<button class="gear locked" disabled aria-label="還沒拿到"><span class="gi">❔</span>？？？</button>`;
+            ? `<button class="gear${on ? ' on' : ''}" data-slot="${slot}" data-id="${id || ''}" aria-pressed="${on}"><span class="gi">${label.icon}</span>${label.name}${stars}${on ? '<span class="gwear">✅ 穿著</span>' : ''}</button>`
+            : `<button class="gear locked" disabled aria-label="還沒拿到的${TIER_NAMES[t]}寶物"><span class="gi">❔</span>？？？${stars}<span class="gwhere">${t === 1 ? '簡單、普通' : t === 2 ? '普通、挑戰' : '挑戰、超級'}</span></button>`;
         }
         html += '</div></div>';
       }
@@ -3485,7 +3518,9 @@
       state.gotLoot = true;
       state.owned.add(id);
       state.newLoot++;
-      state.equip[item.slot] = id;          // 直接換上新裝備
+      // 比身上同部位的裝備好（或一樣好）才自動換上；比較差的先放進背包
+      const wear = tierOf(id) >= tierOf(state.equip[item.slot]);
+      if (wear) state.equip[item.slot] = id;
       saveGear();
       const pc = center(state.p);
       burst(pc.x, pc.y, 10, ['#fff'], { emoji: ['✨', '⭐'], speed: .09, life: 900 });
@@ -3493,9 +3528,13 @@
       addFx({ kind: 'pop', emoji: item.icon, x: pc.x, y: pc.y - 46, size: 30, dur: 1400 });
       sound('equip');
       const name = `${item.icon} ${item.name}（${SLOT_NAMES[item.slot]}）`;
+      const rank = `${tierStars(item.tier)} ${TIER_NAMES[item.tier]}寶物`;
+      const note = wear ? '已經幫你換上了，可以在 🎒 背包裡更換' : '比你身上的裝備等級低，先放進 🎒 背包了';
       if (state.active) {
         $('loot-knight').src = knightImage(state.equip).src;
         $('loot-name').textContent = name;
+        $('loot-rank').textContent = rank;
+        $('loot-note').textContent = note;
         $('loot').hidden = false;
         $('loot').classList.remove('show'); void $('loot').offsetWidth; $('loot').classList.add('show');
       } else {
@@ -3504,6 +3543,8 @@
         $('loot-pop-knight').src = knightImage(state.equip).src;
         $('loot-pop-title').textContent = from === 'chest' ? '🎁 寶箱裡有新裝備！' : '🎁 獲得新裝備！';
         $('loot-pop-name').textContent = name;
+        $('loot-pop-rank').textContent = rank;
+        $('loot-pop-note').textContent = note;
         pop.hidden = false;
         pop.classList.remove('show'); void pop.offsetWidth; pop.classList.add('show');
         clearTimeout(giveLoot.timer);
