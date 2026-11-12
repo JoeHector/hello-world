@@ -1242,6 +1242,7 @@
 
     // ---------- 帳戶畫面 ----------
     let formMode = null;          // 'create' | 'edit'
+    let formAuto = false;         // 表單是因為「還沒有騎士」自動打開的
     let formAvatar = AVATARS[0];
 
     function renderProfiles() {
@@ -1276,7 +1277,9 @@
       const st = $('start-btn');
       st.disabled = !cur;
       st.textContent = cur ? `用「${cur.name}」出發！⚔️` : '先建立你的騎士 ⬆️';
-      if (!has && formMode === null) openForm('create');
+      if (!has && formMode === null) { openForm('create'); formAuto = true; }
+      // 換新裝置時：雲端存檔讀到騎士了，就收起自動打開、還沒填的表單
+      else if (has && formAuto && formMode === 'create' && !$('pf-name').value.trim()) { formAuto = false; closeForm(); return; }
       renderSyncNote();
     }
 
@@ -1290,6 +1293,7 @@
 
     function openForm(mode) {
       formMode = mode;
+      formAuto = false;
       const cur = Profiles.current();
       const editing = mode === 'edit' && cur;
       formAvatar = editing ? cur.avatar : AVATARS[Profiles.list().length % AVATARS.length];
