@@ -113,6 +113,38 @@
 
     .best { text-align: center; color: var(--muted); font-size: .95rem; }
 
+    /* 騎士帳戶 */
+    .profile-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+    .profile {
+      border: 3px solid var(--line); background: #fff; border-radius: 16px; padding: 8px 6px 10px; font: inherit; color: var(--ink);
+      cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; text-align: center;
+    }
+    .profile img { width: 72px; height: 67px; }
+    .profile .pname { font-weight: bold; font-size: 1.05rem; word-break: break-all; }
+    .profile .pmeta { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+    .profile .pavatar { position: absolute; top: 6px; left: 8px; font-size: 1.3rem; }
+    .profile.selected { border-color: var(--accent); background: #fff0e4; box-shadow: 0 0 0 3px #ffd9bf; }
+    .profile.selected::after { content: "✔"; position: absolute; top: 4px; right: 8px; color: var(--accent); font-weight: bold; }
+    .profile.add { border-style: dashed; justify-content: center; min-height: 140px; color: var(--accent-dark); font-weight: bold; gap: 6px; }
+    .profile.add .plus { font-size: 2rem; line-height: 1; }
+    .profile:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+    .profile-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 3px dashed var(--line); }
+    .profile-form label { font-weight: bold; }
+    .profile-form input {
+      width: 100%; font: inherit; font-size: 1.2rem; font-weight: bold; color: var(--ink);
+      border: 3px solid var(--line); border-radius: 14px; padding: 10px 12px; background: #fff;
+    }
+    .profile-form input:focus { outline: none; border-color: var(--accent); }
+    .avatar-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+    .avatar-pick button { width: 46px; height: 46px; font-size: 1.5rem; border: 3px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; }
+    .avatar-pick button[aria-checked="true"] { border-color: var(--accent); background: #fff0e4; }
+    .pf-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+    .pf-actions .btn { font-size: 1.05rem; padding: 11px; }
+    .profile-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .sync-note { margin-top: 10px; font-size: .85rem; color: var(--muted); line-height: 1.5; }
+    .sync-note:empty { display: none; }
+    #start-btn:disabled { opacity: .55; cursor: not-allowed; }
+
     /* ---------- 冒險畫面（全螢幕，地圖在最底層，其他東西疊在上面） ---------- */
     body.playing { overflow: hidden; }
     #game-screen.active { position: fixed; inset: 0; z-index: 10; display: block; animation: none; background: #5fa83a; }
@@ -482,11 +514,25 @@
         <p>每次出發都是一張新地圖！上下左右探索，<br>幫助村民、打倒野獸，打開水晶城堡的大門。<br>有些任務還會考你英文拼字喔！<br>答錯會扣 1 顆 ❤️，看提示要花 2 枚 🪙。</p>
       </div>
 
-      <div class="card">
-        <h2>🛡️ 騎士的名字</h2>
-        <div class="name-row">
-          <input id="knight-name" type="text" maxlength="6" value="小騎士" autocomplete="off" aria-label="騎士的名字" />
+      <div class="card" id="profile-card">
+        <h2 id="profile-heading">👤 選擇你的騎士</h2>
+        <div class="profile-list" id="profile-list"></div>
+
+        <form class="profile-form" id="profile-form" hidden>
+          <label for="pf-name" id="pf-title">建立新的騎士</label>
+          <input id="pf-name" type="text" maxlength="6" autocomplete="off" placeholder="騎士的名字，例如：小明" required />
+          <div class="avatar-pick" id="pf-avatars" role="radiogroup" aria-label="選一個頭像"></div>
+          <div class="pf-actions">
+            <button type="button" class="btn secondary" id="pf-cancel">取消</button>
+            <button type="submit" class="btn" id="pf-save">建立騎士</button>
+          </div>
+        </form>
+
+        <div class="profile-tools" id="profile-tools" hidden>
+          <button type="button" class="tool" id="pf-rename">✏️ 改名字和頭像</button>
+          <button type="button" class="tool" id="pf-delete">🗑️ 刪除這位騎士</button>
         </div>
+        <p class="sync-note" id="sync-note"></p>
       </div>
 
       <div class="card">
@@ -701,6 +747,16 @@
       </div>
       <div class="bag-list" id="bag-list"></div>
       <button class="btn secondary" id="bag-close">關閉</button>
+    </div>
+  </div>
+
+  <div class="modal" id="del-modal" hidden>
+    <div class="modal-box" role="dialog" aria-labelledby="del-text">
+      <p id="del-text">要刪除這位騎士嗎？</p>
+      <div class="modal-actions">
+        <button class="btn secondary" id="del-no">不要刪</button>
+        <button class="btn" id="del-yes">刪除</button>
+      </div>
     </div>
   </div>
 
@@ -992,35 +1048,325 @@
     }
     const knightImg = knightImage(DEFAULT_EQUIP);
 
-    // 裝備存在這台裝置的瀏覽器裡，下一次冒險會接著用
-    const GEAR_KEY = 'knight-gear-v1';
     const ALL_GEAR = Object.values(GEAR_TRACKS).flat();
     const CHEST_LOOT_RATE = 0.35;   // 寶箱裡有裝備的機會
-    function loadGear() {
+
+    // =====================================================================
+    // 騎士帳戶：每個小朋友有自己的名字、頭像、裝備、設定和紀錄
+    // 一定會存在這台裝置的瀏覽器；在 claude.ai 上登入打開時，
+    // 也會同步到只有自己看得到的雲端存檔（data/users/<自己的 id>/knights）。
+    // =====================================================================
+    const PROFILES_KEY = 'knight-profiles-v1';
+    // 新騎士（或還沒選過設定的騎士）用的題目設定
+    const DEFAULT_PREFS = { mode: 'add', level: 10, layout: 'h', count: 8, view: '3d' };
+    const AVATARS = ['🧒', '👧', '👦', '🧑', '🦸', '🧝', '🐱', '🐶'];
+    const Profiles = (() => {
+      let data = { profiles: [], deleted: [], current: null };
+      let cloudRef = null, status = 'local', writing = false, again = false, timer = 0;
+      const listeners = [];
+      const now = () => Date.now();
+      const valid = (p) => p && typeof p.id === 'string' && /^[a-z0-9]{4,40}$/i.test(p.id) && typeof p.name === 'string';
+
+      // 讀進來的資料一律整理過：名字最多 6 個字、只留下存在的裝備
+      function normalize(p) {
+        const g = p.gear || {};
+        return {
+          id: p.id,
+          name: String(p.name).trim().slice(0, 6) || '小騎士',
+          avatar: AVATARS.includes(p.avatar) ? p.avatar : AVATARS[0],
+          gear: { owned: (Array.isArray(g.owned) ? g.owned : []).filter(id => GEAR[id]), equip: g.equip && typeof g.equip === 'object' ? { ...g.equip } : {} },
+          prefs: p.prefs && typeof p.prefs === 'object' ? { ...p.prefs } : {},
+          stats: { adventures: Number(p.stats && p.stats.adventures) || 0, stars: Number(p.stats && p.stats.stars) || 0 },
+          best: p.best && typeof p.best === 'object' ? { ...p.best } : {},
+          created: Number(p.created) || now(),
+          updated: Number(p.updated) || now(),
+        };
+      }
+
+      function readLocal() {
+        try {
+          const d = JSON.parse(localStorage.getItem(PROFILES_KEY) || 'null');
+          if (d && Array.isArray(d.profiles)) {
+            data = { profiles: d.profiles.filter(valid).map(normalize), deleted: Array.isArray(d.deleted) ? d.deleted : [], current: d.current || null };
+          }
+        } catch (e) {}
+      }
+      function writeLocal() { try { localStorage.setItem(PROFILES_KEY, JSON.stringify(data)); } catch (e) {} }
+
+      // 以前只有一個名字和一套裝備：第一次打開新版時，自動變成第一位騎士
+      // 只做一次：之後就算把騎士都刪掉，也不會再從舊存檔變回來
+      function migrateOld() {
+        let done = false;
+        try { done = localStorage.getItem('knight-migrated') === '1'; } catch (e) {}
+        if (done) return;
+        try { localStorage.setItem('knight-migrated', '1'); } catch (e) {}
+        if (data.profiles.length) return;
+        let name = null, gear = null;
+        try { name = localStorage.getItem('knight-name'); gear = JSON.parse(localStorage.getItem('knight-gear-v1') || 'null'); } catch (e) {}
+        if (!name && !gear) return;
+        const p = normalize({ id: newId(), name: name || '小騎士', avatar: AVATARS[0], gear: gear || {}, prefs: { ...DEFAULT_PREFS } });
+        data.profiles.push(p);
+        data.current = p.id;
+      }
+
+      const newId = () => 'k' + now().toString(36) + Math.random().toString(36).slice(2, 8);
+      function emit() { listeners.forEach(f => { try { f(); } catch (e) { console.warn(e); } }); }
+      function persist() { writeLocal(); scheduleCloud(); emit(); }
+
+      // ---------- 雲端存檔 ----------
+      function scheduleCloud() {
+        if (status !== 'cloud') return;
+        clearTimeout(timer);
+        timer = setTimeout(flush, 1200);   // 連續改很多次時，合併成一次寫入
+      }
+      async function flush() {
+        if (!cloudRef || status !== 'cloud') return;
+        if (writing) { again = true; return; }   // 同一份文件一次只寫一筆
+        writing = true;
+        try {
+          await cloudRef.set({ profiles: data.profiles, deleted: data.deleted.slice(-50), updated: now() });
+        } catch (e) {
+          const code = e && e.code;
+          if (code === 'unavailable') setTimeout(flush, 2000 + Math.random() * 2000);
+          else { status = 'local'; emit(); }      // 不能寫雲端：繼續用這台裝置的存檔
+        }
+        writing = false;
+        if (again) { again = false; flush(); }
+      }
+      // 兩邊都有的騎士，留下比較新的那份；任一邊刪掉的，就刪掉
+      function merge(remote) {
+        const deleted = new Set([...data.deleted, ...(Array.isArray(remote.deleted) ? remote.deleted : [])]);
+        const map = new Map();
+        [...(Array.isArray(remote.profiles) ? remote.profiles : []), ...data.profiles].forEach(p => {
+          if (!valid(p) || deleted.has(p.id)) return;
+          const q = normalize(p), cur = map.get(q.id);
+          if (!cur || q.updated > cur.updated) map.set(q.id, q);
+        });
+        data.profiles = [...map.values()].sort((a, b) => a.created - b.created);
+        data.deleted = [...deleted].slice(-50);
+        if (!data.profiles.some(p => p.id === data.current)) data.current = data.profiles[0] ? data.profiles[0].id : null;
+      }
+      async function connect() {
+        if (!window.claude || typeof window.claude.use !== 'function') return;   // 直接打開檔案時沒有雲端
+        status = 'loading'; emit();
+        const giveUp = setTimeout(() => { if (status === 'loading') { status = 'local'; emit(); } }, 10000);
+        try {
+          const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+          const uid = user ? await user.id() : null;
+          if (!db || !uid) throw new Error('no cloud');
+          const ref = db.doc('data/users/' + uid + '/knights');
+          const snap = await ref.get();
+          clearTimeout(giveUp);
+          const remote = snap.exists ? (snap.data() || {}) : {};
+          const before = JSON.stringify(remote.profiles || []);
+          merge(remote);
+          cloudRef = ref;
+          status = 'cloud';
+          writeLocal();
+          if (JSON.stringify(data.profiles) !== before) flush();   // 這台裝置有比較新的進度：補上傳
+          emit();
+        } catch (e) {
+          clearTimeout(giveUp);
+          status = 'local';
+          emit();
+        }
+      }
+
+      return {
+        init() {
+          readLocal();
+          migrateOld();
+          if (!data.profiles.some(p => p.id === data.current)) data.current = data.profiles[0] ? data.profiles[0].id : null;
+          writeLocal();
+          connect();
+        },
+        list: () => data.profiles,
+        current: () => data.profiles.find(p => p.id === data.current) || null,
+        select(id) { if (data.profiles.some(p => p.id === id)) { data.current = id; writeLocal(); emit(); } },
+        create(name, avatar, prefs) {
+          const p = normalize({ id: newId(), name, avatar, prefs });
+          data.profiles.push(p);
+          data.current = p.id;
+          persist();
+          return p;
+        },
+        update(id, fn) {
+          const p = data.profiles.find(x => x.id === id);
+          if (!p) return;
+          fn(p);
+          p.updated = now();
+          persist();
+        },
+        remove(id) {
+          data.profiles = data.profiles.filter(p => p.id !== id);
+          data.deleted.push(id);
+          if (data.current === id) data.current = data.profiles[0] ? data.profiles[0].id : null;
+          persist();
+        },
+        status: () => status,
+        onChange(f) { listeners.push(f); },
+      };
+    })();
+
+    // 目前這位騎士的裝備（沒有騎士時是新手裝備）
+    function loadGear(p = Profiles.current()) {
       const owned = new Set(Object.values(DEFAULT_EQUIP).filter(Boolean));
       const equip = { ...DEFAULT_EQUIP };
-      try {
-        const d = JSON.parse(localStorage.getItem(GEAR_KEY) || 'null');
-        if (d) {
-          (d.owned || []).forEach(id => { if (GEAR[id]) owned.add(id); });
-          for (const slot of ['helmet', 'cape', 'weapon']) {
-            const id = d.equip ? d.equip[slot] : undefined;
-            if (slot === 'cape' && id === null) equip.cape = null;
-            else if (id && GEAR[id] && GEAR[id].slot === slot && owned.has(id)) equip[slot] = id;
-          }
+      if (p) {
+        p.gear.owned.forEach(id => { if (GEAR[id]) owned.add(id); });
+        for (const slot of ['helmet', 'cape', 'weapon']) {
+          const id = p.gear.equip[slot];
+          if (slot === 'cape' && id === null) equip.cape = null;
+          else if (id && GEAR[id] && GEAR[id].slot === slot && owned.has(id)) equip[slot] = id;
         }
-      } catch (e) {}
+      }
       return { owned, equip };
     }
     function saveGear() {
-      try { localStorage.setItem(GEAR_KEY, JSON.stringify({ owned: [...state.owned], equip: state.equip })); } catch (e) {}
+      const p = Profiles.current();
+      if (!p || !state) return;
+      Profiles.update(p.id, q => { q.gear = { owned: [...state.owned].filter(id => GEAR[id]), equip: { ...state.equip } }; });
     }
-    // 開始畫面：顯示目前的裝扮和收集進度
+    const gearCount = (owned) => ALL_GEAR.filter(id => owned.has(id)).length;
+
+    // 開始畫面：顯示目前騎士的裝扮和收集進度
     function showSavedLook() {
-      const g = loadGear();
+      const p = Profiles.current();
+      const g = loadGear(p);
       $('hero-knight').src = knightImage(g.equip).src;
-      const got = ALL_GEAR.filter(id => g.owned.has(id)).length;
-      $('gear-progress').textContent = got ? `🎒 已收集 ${got} / ${ALL_GEAR.length} 件裝備${got === ALL_GEAR.length ? '，全部收集完成！🎉' : ''}` : '';
+      const got = gearCount(g.owned);
+      $('gear-progress').textContent = p
+        ? `🎒 ${p.name}已收集 ${got} / ${ALL_GEAR.length} 件裝備${got === ALL_GEAR.length ? '，全部收集完成！🎉' : ''}`
+        : '';
+    }
+
+    // ---------- 帳戶畫面 ----------
+    let formMode = null;          // 'create' | 'edit'
+    let formAvatar = AVATARS[0];
+
+    function renderProfiles() {
+      const list = $('profile-list');
+      list.innerHTML = '';
+      const cur = Profiles.current();
+      Profiles.list().forEach(p => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'profile' + (cur && cur.id === p.id ? ' selected' : '');
+        b.setAttribute('aria-pressed', String(!!cur && cur.id === p.id));
+        const g = loadGear(p);
+        const img = document.createElement('img'); img.alt = ''; img.src = knightImage(g.equip).src;
+        const av = document.createElement('span'); av.className = 'pavatar'; av.textContent = p.avatar;
+        const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name;
+        const meta = document.createElement('span'); meta.className = 'pmeta';
+        meta.textContent = `🎒 ${gearCount(g.owned)}/${ALL_GEAR.length}　🏰 ${p.stats.adventures} 次`;
+        b.append(av, img, nm, meta);
+        b.addEventListener('click', () => { sound('tap'); Profiles.select(p.id); applyPrefs(); closeForm(); });
+        list.appendChild(b);
+      });
+      const add = document.createElement('button');
+      add.type = 'button';
+      add.className = 'profile add';
+      add.innerHTML = '<span class="plus">＋</span><span>新增騎士</span>';
+      add.addEventListener('click', () => { sound('tap'); openForm('create'); });
+      if (formMode !== 'create') list.appendChild(add);   // 已經在填新騎士的資料時，就不用再顯示「新增」
+
+      const has = Profiles.list().length > 0;
+      $('profile-heading').textContent = has ? '👤 選擇你的騎士' : '👤 建立你的騎士帳戶';
+      $('profile-tools').hidden = !cur || formMode !== null;
+      const st = $('start-btn');
+      st.disabled = !cur;
+      st.textContent = cur ? `用「${cur.name}」出發！⚔️` : '先建立你的騎士 ⬆️';
+      if (!has && formMode === null) openForm('create');
+      renderSyncNote();
+    }
+
+    function renderSyncNote() {
+      const st = Profiles.status();
+      $('sync-note').textContent =
+        st === 'cloud'   ? '☁️ 騎士的進度會存到你的 Claude 帳號，換一台裝置登入也能接著玩。'
+        : st === 'loading' ? '☁️ 正在讀取雲端存檔…（先用這台裝置的存檔）'
+        : '💾 騎士的進度存在這台裝置的瀏覽器裡，下次打開會自動載入。';
+    }
+
+    function openForm(mode) {
+      formMode = mode;
+      const cur = Profiles.current();
+      const editing = mode === 'edit' && cur;
+      formAvatar = editing ? cur.avatar : AVATARS[Profiles.list().length % AVATARS.length];
+      $('pf-title').textContent = editing ? `修改「${cur.name}」` : (Profiles.list().length ? '建立新的騎士' : '建立你的第一位騎士');
+      $('pf-name').value = editing ? cur.name : '';
+      $('pf-save').textContent = editing ? '儲存' : '建立騎士';
+      $('pf-cancel').hidden = !Profiles.list().length;
+      renderAvatars();
+      $('profile-form').hidden = false;
+      $('profile-tools').hidden = true;
+      renderProfiles();
+      setTimeout(() => $('pf-name').focus(), 50);
+    }
+    function closeForm() {
+      formMode = null;
+      $('profile-form').hidden = true;
+      renderProfiles();
+    }
+    function renderAvatars() {
+      const box = $('pf-avatars');
+      box.innerHTML = '';
+      AVATARS.forEach(a => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = a;
+        b.setAttribute('role', 'radio');
+        b.setAttribute('aria-checked', String(a === formAvatar));
+        b.setAttribute('aria-label', '頭像 ' + a);
+        b.addEventListener('click', () => { formAvatar = a; sound('tap'); renderAvatars(); });
+        box.appendChild(b);
+      });
+    }
+
+    $('profile-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = $('pf-name').value.trim().slice(0, 6);
+      if (!name) { $('pf-name').focus(); toast('請先幫騎士取一個名字'); return; }
+      const cur = Profiles.current();
+      if (formMode === 'edit' && cur) {
+        Profiles.update(cur.id, p => { p.name = name; p.avatar = formAvatar; });
+      } else {
+        Profiles.create(name, formAvatar, { ...DEFAULT_PREFS, view: settings.view });
+      }
+      sound('equip');
+      closeForm();
+      showBest();
+    });
+    $('pf-cancel').addEventListener('click', () => { sound('tap'); closeForm(); });
+    $('pf-rename').addEventListener('click', () => { sound('tap'); openForm('edit'); });
+    $('pf-delete').addEventListener('click', () => {
+      const cur = Profiles.current();
+      if (!cur) return;
+      $('del-text').textContent = `要刪除「${cur.name}」嗎？這位騎士收集的裝備和紀錄都會不見，沒辦法復原喔！`;
+      $('del-modal').hidden = false;
+    });
+    $('del-no').addEventListener('click', () => { $('del-modal').hidden = true; });
+    $('del-yes').addEventListener('click', () => {
+      const cur = Profiles.current();
+      $('del-modal').hidden = true;
+      if (cur) Profiles.remove(cur.id);
+      applyPrefs();
+    });
+
+    // 每位騎士記住自己的題目設定
+    const PREF_KEYS = ['mode', 'level', 'layout', 'count', 'view'];
+    function applyPrefs() {
+      const p = Profiles.current();
+      if (p) {
+        PREF_KEYS.forEach(k => {
+          const v = p.prefs[k] !== undefined ? p.prefs[k] : DEFAULT_PREFS[k];
+          const btn = v !== undefined && document.querySelector(`[data-group=${k}] [data-value="${v}"]`);
+          if (btn && !btn.disabled) settings[k] = typeof settings[k] === 'number' ? Number(v) : v;
+        });
+      }
+      if (!R3.supported()) settings.view = '2d';
+      PREF_KEYS.forEach(k => document.querySelectorAll(`[data-group=${k}] .opt`).forEach(b => b.classList.toggle('selected', b.dataset.value === String(settings[k]))));
+      showBest();
     }
 
     // =====================================================================
@@ -1035,11 +1381,12 @@
         const key = group.dataset.group;
         settings[key] = (key === 'mode' || key === 'layout' || key === 'view') ? btn.dataset.value : Number(btn.dataset.value);
         if (key === 'view') { try { localStorage.setItem('knight-view', settings.view); } catch (e) {} }
+        const cur = Profiles.current();
+        if (cur) Profiles.update(cur.id, p => { p.prefs[key] = settings[key]; });
         sound('tap');
         showBest();
       });
     });
-    try { const saved = localStorage.getItem('knight-name'); if (saved) $('knight-name').value = saved; } catch (e) {}
 
     // =====================================================================
     // 出題
@@ -1299,9 +1646,10 @@
     // 開始遊戲
     // =====================================================================
     function startGame() {
-      const name = $('knight-name').value.trim() || '小騎士';
+      const prof = Profiles.current();
+      if (!prof) { showScreen('start-screen'); openForm('create'); return; }
+      const name = prof.name;
       settings.name = name;
-      try { localStorage.setItem('knight-name', name); } catch (e) {}
       bags = {};
       if (state) cancelAnimationFrame(state.raf);
 
@@ -3232,24 +3580,31 @@
       if (ratio >= .7) confetti();
     }
 
-    const bestKey = () => `knight-map-best-${settings.mode}-${settings.level}-${settings.count}`;
+    const bestKey = () => `${settings.mode}-${settings.level}-${settings.count}`;
+    // 冒險結束：次數、星星、最多金幣都記在這位騎士的帳戶裡
     function saveBest() {
-      try {
-        const prev = Number(localStorage.getItem(bestKey()) || 0);
-        if (state.coins > prev) localStorage.setItem(bestKey(), state.coins);
-      } catch (e) {}
+      const p = Profiles.current();
+      if (!p || !state) return;
+      Profiles.update(p.id, q => {
+        q.stats.adventures += 1;
+        q.stats.stars += state.stars;
+        const k = bestKey();
+        if (state.coins > (Number(q.best[k]) || 0)) q.best[k] = state.coins;
+      });
     }
     function showBest() {
       showSavedLook();
-      let best = 0;
-      try { best = Number(localStorage.getItem(bestKey()) || 0); } catch (e) {}
-      $('best-text').textContent = best ? `🏅 這種地圖的最多金幣：🪙 ${best} 枚` : '';
+      const p = Profiles.current();
+      const best = p ? Number(p.best[bestKey()]) || 0 : 0;
+      $('best-text').textContent = !p ? ''
+        : (best ? `🏅 這種地圖的最多金幣：🪙 ${best} 枚　` : '') + `⭐ 累積 ${p.stats.stars} 顆星星、完成 ${p.stats.adventures} 次冒險`;
     }
 
     function showScreen(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       $(id).classList.add('active');
       document.body.classList.toggle('playing', id === 'game-screen');
+      if (id === 'start-screen') { renderProfiles(); showBest(); }
       if (id !== 'game-screen' && document.fullscreenElement) document.exitFullscreen().catch(() => {});
       window.scrollTo(0, 0);
     }
@@ -3661,10 +4016,13 @@
         document.querySelector('[data-group=view] [data-value="3d"]').disabled = true;
         $('view-note').hidden = false;
       }
-      document.querySelectorAll('[data-group=view] .opt').forEach(b => b.classList.toggle('selected', b.dataset.value === settings.view));
     })();
 
-    showBest();
+    // 騎士帳戶：讀取存檔（雲端存檔讀到後會自動更新畫面）
+    Profiles.onChange(() => { if ($('start-screen').classList.contains('active')) { renderProfiles(); showBest(); } else renderSyncNote(); });
+    Profiles.init();
+    applyPrefs();
+    renderProfiles();
   </script>
 </body>
 </html>
