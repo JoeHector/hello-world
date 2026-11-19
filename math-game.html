@@ -57,6 +57,7 @@
     .hero { text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
     .hero-art { display: flex; align-items: flex-end; gap: 14px; font-size: 2.8rem; }
     .hero-art img { width: 75px; height: 70px; }
+    .hero-art #hero-enemy { transform: scaleX(-1); }
     .hero h1 { font-size: 2rem; text-wrap: balance; }
     .hero p { color: var(--muted); line-height: 1.6; text-wrap: balance; }
 
@@ -351,7 +352,8 @@
       font-size: 2.5rem; width: 62px; height: 62px; flex: none; border-radius: 18px; background: #fff;
       border: 3px solid var(--line); display: flex; align-items: center; justify-content: center;
     }
-    .enc.battle .portrait { border-color: var(--red); background: #fdecee; }
+    .enc.battle .portrait { border-color: var(--red); background: #fdecee; overflow: hidden; }
+    .portrait img { width: 64px; height: 60px; transform: scaleX(-1); }
     .enc-head .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     .enc-kind { color: var(--accent); font-weight: bold; font-size: .85rem; letter-spacing: .08em; }
     .enc.battle .enc-kind { color: var(--red); }
@@ -519,9 +521,9 @@
     <!-- 開始畫面 -->
     <section class="screen active" id="start-screen">
       <div class="hero">
-        <div class="hero-art" aria-hidden="true"><img id="hero-knight" alt="" /><span>🐺</span><span>🗺️</span><span>🏰</span></div>
+        <div class="hero-art" aria-hidden="true"><img id="hero-knight" alt="" /><img id="hero-enemy" alt="" /><span>🗺️</span><span>🏰</span></div>
         <h1>小騎士數學冒險</h1>
-        <p>每次出發都是一張新地圖！上下左右探索，<br>幫助村民、打倒野獸，打開水晶城堡的大門。<br>有些任務還會考你英文拼字喔！<br>答錯會扣 1 顆 ❤️，看提示要花 2 枚 🪙。</p>
+        <p>每次出發都是一張新地圖！上下左右探索，<br>幫助村民、打倒山賊和浪人，打開水晶城堡的大門。<br>有些任務還會考你英文拼字喔！<br>答錯會扣 1 顆 ❤️，看提示要花 2 枚 🪙。</p>
       </div>
 
       <div class="card" id="profile-card">
@@ -622,7 +624,7 @@
           <canvas class="minimap" id="minimap" aria-label="小地圖"></canvas>
           <div class="legend">
             <span><i style="background:#f5b82e"></i>村民</span>
-            <span><i style="background:#e0485a"></i>野獸</span>
+            <span><i style="background:#e0485a"></i>敵人</span>
             <span><i style="background:#9b6bff"></i>城堡</span>
             <span><i style="background:#fff"></i>你</span>
           </div>
@@ -883,23 +885,23 @@
     const BATTLE_QUESTS = {
       '+': [
         { unit: '點', text: (a, b, n, B) => `${B}擋在路中間，不讓${n}通過。${n}揮劍兩次，第一下造成 <b>${a}</b> 點傷害。第二下更用力，造成 <b>${b}</b> 點傷害。${ASK('兩下一共造成幾點傷害？')}` },
-        { unit: '顆', text: (a, b, n, B) => `${B}躲在岩石後面朝${n}丟石頭。牠先丟出 <b>${a}</b> 顆石頭。接著又丟出 <b>${b}</b> 顆。${ASK(`${B}一共丟出幾顆石頭？算對就能用盾牌全部擋下！`)}` },
+        { unit: '顆', text: (a, b, n, B) => `${B}躲在岩石後面朝${n}丟石頭。對方先丟出 <b>${a}</b> 顆石頭。接著又丟出 <b>${b}</b> 顆。${ASK(`${B}一共丟出幾顆石頭？算對就能用盾牌全部擋下！`)}` },
         { unit: '支', text: (a, b, n, B) => `${n}決定用弓箭對付${B}。箭袋裡原本有 <b>${a}</b> 支箭。${n}又在地上撿到 <b>${b}</b> 支。${ASK('現在一共有幾支箭可以射？')}` },
         { unit: '點', text: (a, b, n, B) => `${B}看起來很強壯，${n}喝下一瓶力量藥水。${n}的攻擊力原本是 <b>${a}</b> 點。喝下藥水後，又增加了 <b>${b}</b> 點。${ASK('現在攻擊力是幾點？')}` },
-        { unit: '步', text: (a, b, n, B) => `${B}發出一聲大吼，朝${n}衝過來。牠先往前衝了 <b>${a}</b> 步。停下來喘口氣後，又再衝了 <b>${b}</b> 步。${ASK(`${B}一共衝了幾步？`)}` },
-        { unit: '點', text: (a, b, n, B) => `${n}和${B}在比賽誰的力氣比較大。${B}的力氣有 <b>${a}</b> 點。${n}的力氣比牠<b>多</b> <b>${b}</b> 點。${ASK(`${n}的力氣是幾點？`)}` },
+        { unit: '步', text: (a, b, n, B) => `${B}發出一聲大吼，朝${n}衝過來。對方先往前衝了 <b>${a}</b> 步。停下來喘口氣後，又再衝了 <b>${b}</b> 步。${ASK(`${B}一共衝了幾步？`)}` },
+        { unit: '點', text: (a, b, n, B) => `${n}和${B}在比賽誰的力氣比較大。${B}的力氣有 <b>${a}</b> 點。${n}的力氣比對方<b>多</b> <b>${b}</b> 點。${ASK(`${n}的力氣是幾點？`)}` },
       ],
       '-': [
-        { unit: '點', text: (a, b, n, B) => `${B}和${n}正在激烈地戰鬥。${B}原本有 <b>${a}</b> 點生命。${n}的劍砍中牠，砍掉了 <b>${b}</b> 點。${ASK(`${B}還剩下幾點生命？`)}` },
+        { unit: '點', text: (a, b, n, B) => `${B}和${n}正在激烈地戰鬥。${B}原本有 <b>${a}</b> 點生命。${n}的劍砍中對方，砍掉了 <b>${b}</b> 點。${ASK(`${B}還剩下幾點生命？`)}` },
         { unit: '點', text: (a, b, n) => `${n}舉起魔法杖，準備施放閃電術。${n}原本有 <b>${a}</b> 點魔力。閃電術用掉了 <b>${b}</b> 點魔力。${ASK(`${n}還剩下幾點魔力？`)}` },
         { unit: '公分', text: (a, b, n, B) => `${B}和${n}在比賽誰跳得比較高。${B}跳起來有 <b>${a}</b> 公分高。${n}跳起來有 <b>${b}</b> 公分高。${ASK(`${B}比${n}多跳幾公分？`)}` },
         { unit: '顆', text: (a, b, n, B) => `${B}偷偷溜進村莊，偷走了好多蘋果。被偷走的蘋果一共有 <b>${a}</b> 顆。${n}已經搶回 <b>${b}</b> 顆了。${ASK('還有幾顆蘋果要搶回來？')}` },
         { unit: '塊', text: (a, b, n, B) => `${B}用大石頭把小路整個堵住了。路上一共有 <b>${a}</b> 塊大石頭。${n}用力推開了 <b>${b}</b> 塊。${ASK('還剩下幾塊石頭擋路？')}` },
-        { unit: '點', text: (a, b, n, B) => `${B}伸出爪子，朝${n}的盾牌抓過去。盾牌原本可以擋 <b>${a}</b> 點傷害。被抓了一下以後，少了 <b>${b}</b> 點。${ASK('盾牌現在還可以擋幾點傷害？')}` },
+        { unit: '點', text: (a, b, n, B) => `${B}舉起武器，朝${n}的盾牌砍過去。盾牌原本可以擋 <b>${a}</b> 點傷害。被砍了一下以後，少了 <b>${b}</b> 點。${ASK('盾牌現在還可以擋幾點傷害？')}` },
       ],
       '×': [
         { unit: '支', text: (a, b, n, B) => `${n}拉開弓，對${B}連續射出好幾輪箭。每一輪都射出 <b>${a}</b> 支箭。${n}一共射了 <b>${b}</b> 輪。${ASK(`${n}一共射出幾支箭？`)}` },
-        { unit: '顆', text: (a, b, n, B) => `${B}朝${n}丟出好幾堆石頭。每一堆都有 <b>${a}</b> 顆石頭。牠一共丟了 <b>${b}</b> 堆。${ASK(`${B}一共丟出幾顆石頭？`)}` },
+        { unit: '顆', text: (a, b, n, B) => `${B}朝${n}丟出好幾堆石頭。每一堆都有 <b>${a}</b> 顆石頭。對方一共丟了 <b>${b}</b> 堆。${ASK(`${B}一共丟出幾顆石頭？`)}` },
         { unit: '點', text: (a, b, n, B) => `${n}施展分身魔法，對${B}發動攻擊。每一個分身可以造成 <b>${a}</b> 點傷害。${n}一共變出了 <b>${b}</b> 個分身。${ASK('所有分身一共造成幾點傷害？')}` },
         { unit: '隻', text: (a, b, n, B) => `${B}吹了一聲口哨，叫來好多小幫手。小幫手分成好幾群，每一群有 <b>${a}</b> 隻。一共來了 <b>${b}</b> 群。${ASK(`${B}一共叫來幾隻小幫手？`)}` },
         { unit: '個', text: (a, b, n, B) => `${B}在小路上偷偷挖了陷阱。陷阱排成好幾排，每一排有 <b>${a}</b> 個。路上一共有 <b>${b}</b> 排。${ASK('路上一共有幾個陷阱要小心？')}` },
@@ -940,22 +942,24 @@
         win: '信順利寄出去了！' },
     ];
     const SPELL_BATTLE = [
-      { text: (w, n, B) => `${B}突然停下來，拿出一張圖卡。圖卡上畫著 ${w.emoji}。牠大聲說：「拼對這個英文單字，我就讓你攻擊！」${SPELL_ASK(w)}` },
+      { text: (w, n, B) => `${B}突然停下來，拿出一張圖卡。圖卡上畫著 ${w.emoji}。對方大聲說：「拼對這個英文單字，我就讓你攻擊！」${SPELL_ASK(w)}` },
       { text: (w, n, B) => `${B}的寶箱上有一個英文密碼鎖。只要拼對單字，寶箱裡的魔法劍就會飛出來幫忙。鎖上畫著 ${w.emoji}。${SPELL_ASK(w)}` },
       { text: (w, n, B) => `${n}的劍上刻著古老的魔法文字。只要拼出正確的英文單字，劍就會發光打敗${B}。劍柄上畫著 ${w.emoji} 的圖案。${SPELL_ASK(w)}` },
     ];
 
+    // 敵人：山賊和浪人。look 決定他們的樣子（2D 圖和 3D 模型都用這份）
     const BEASTS = [
-      { icon: '🐺', name: '灰狼', hp: 2, reward: 3 },
-      { icon: '🐗', name: '野豬', hp: 2, reward: 3 },
-      { icon: '🦇', name: '洞窟蝙蝠', hp: 2, reward: 3 },
-      { icon: '🐍', name: '沼澤大蛇', hp: 2, reward: 3 },
-      { icon: '🕷️', name: '巨大蜘蛛', hp: 2, reward: 3 },
-      { icon: '🦂', name: '沙漠蠍子', hp: 2, reward: 3 },
-      { icon: '🐻', name: '暴躁大熊', hp: 3, reward: 4 },
-      { icon: '🦍', name: '山頂巨猿', hp: 3, reward: 4 },
+      { icon: '🥷', name: '山賊小弟', hp: 2, reward: 3, look: { skin: '#f2c9a0', hat: 'bandana', hatColor: '#e0485a', cloth: '#8b5a2b', sash: '#3a2e22', weapon: 'club' } },
+      { icon: '🥷', name: '蒙面山賊', hp: 2, reward: 3, look: { skin: '#e8b88a', hat: 'hood', hatColor: '#4a4a52', cloth: '#5b5b66', sash: '#a83a3a', mask: true, weapon: 'dagger' } },
+      { icon: '🥷', name: '弓箭山賊', hp: 2, reward: 3, look: { skin: '#f2c9a0', hat: 'bandana', hatColor: '#2f7d3a', cloth: '#6b8f3a', sash: '#5b3a1e', weapon: 'bow' } },
+      { icon: '🥷', name: '獨眼山賊', hp: 2, reward: 3, look: { skin: '#e0a878', hat: 'bandana', hatColor: '#3d6fd6', cloth: '#7a6a5a', sash: '#3a2e22', eyepatch: true, weapon: 'club' } },
+      { icon: '🥷', name: '流浪劍客', hp: 2, reward: 3, look: { skin: '#f2c9a0', hat: 'kasa', hatColor: '#d9b26a', cloth: '#4a6fa5', sash: '#e8e0c8', weapon: 'katana' } },
+      { icon: '🥷', name: '雙刀浪人', hp: 3, reward: 4, look: { skin: '#e8b88a', hat: 'topknot', hatColor: '#2b2b2b', cloth: '#7a3b5c', sash: '#f5b82e', scar: true, weapon: 'twin' } },
+      { icon: '🥷', name: '大鬍子山賊', hp: 3, reward: 4, look: { skin: '#e0a878', hat: 'bandana', hatColor: '#3a2e22', cloth: '#9a4a2a', sash: '#3a2e22', beard: '#5b3a1e', weapon: 'axe' } },
+      { icon: '🥷', name: '黑衣浪人', hp: 3, reward: 4, look: { skin: '#f2c9a0', hat: 'kasa', hatColor: '#3a3a3a', cloth: '#2b2b33', sash: '#a83a3a', weapon: 'katana' } },
     ];
-    const BOSS = { icon: '🐲', name: '守城飛龍', hp: 3, reward: 8, boss: true };
+    const BOSS = { icon: '👹', name: '山賊大王', hp: 3, reward: 8, boss: true,
+      look: { skin: '#e0a878', hat: 'horned', hatColor: '#5b3a1e', cloth: '#a83a3a', sash: '#f5b82e', beard: '#3a2e22', fur: true, weapon: 'bigaxe' } };
 
     // =====================================================================
     // 小工具
@@ -976,34 +980,62 @@
     // 每一條路線依序升級，例如頭盔：銅製 → 銀色羽毛 → 黃金王冠
     // =====================================================================
     const GEAR = {
-      'helm-basic':  { slot: 'helmet', name: '新手頭盔', icon: '⛑️', look: { fill: '#c9d3dd', plume: '#e0485a' } },
-      'helm-bronze': { tier: 1, slot: 'helmet', name: '銅製頭盔', icon: '🪖', look: { fill: '#cd8a4a', rivets: true } },
-      'helm-silver': { tier: 2, slot: 'helmet', name: '銀色羽毛頭盔', icon: '🪶', look: { fill: '#eef3f8', plume: '#3d8fd6', tall: true } },
-      'helm-gold':   { tier: 3, slot: 'helmet', name: '黃金王冠頭盔', icon: '👑', look: { fill: '#f5c84a', crown: true } },
-      'cape-red':    { tier: 1, slot: 'cape', name: '紅色披風', icon: '🟥', look: { fill: '#e0485a' } },
-      'cape-blue':   { tier: 2, slot: 'cape', name: '藍色勇者披風', icon: '🟦', look: { fill: '#3d6fd6', trim: '#f5b82e' } },
-      'cape-star':   { tier: 3, slot: 'cape', name: '星空魔法披風', icon: '🌌', look: { fill: '#5b3fa8', trim: '#f5b82e', stars: true } },
+      // ---------- 頭盔 ----------
+      'helm-basic':   { slot: 'helmet', name: '新手頭盔', icon: '⛑️', look: { fill: '#c9d3dd', plume: '#e0485a' } },
+      'helm-leather': { tier: 1, slot: 'helmet', name: '皮革小帽', icon: '🧢', look: { fill: '#9a6a3a', cap: true } },
+      'helm-bronze':  { tier: 1, slot: 'helmet', name: '銅製頭盔', icon: '🪖', look: { fill: '#cd8a4a', rivets: true } },
+      'helm-silver':  { tier: 2, slot: 'helmet', name: '銀色羽毛頭盔', icon: '🪶', look: { fill: '#eef3f8', plume: '#3d8fd6', tall: true } },
+      'helm-horned':  { tier: 2, slot: 'helmet', name: '牛角頭盔', icon: '🐂', look: { fill: '#b8c2cc', horns: true } },
+      'helm-gold':    { tier: 3, slot: 'helmet', name: '黃金王冠頭盔', icon: '👑', look: { fill: '#f5c84a', crown: true } },
+      'helm-dragon':  { tier: 3, slot: 'helmet', name: '龍鱗頭盔', icon: '🐲', look: { fill: '#3f8f5a', spikes: true } },
+      // ---------- 披風 ----------
+      'cape-green':   { tier: 1, slot: 'cape', name: '森林綠披風', icon: '🟩', look: { fill: '#3f9a52' } },
+      'cape-red':     { tier: 1, slot: 'cape', name: '紅色披風', icon: '🟥', look: { fill: '#e0485a' } },
+      'cape-blue':    { tier: 2, slot: 'cape', name: '藍色勇者披風', icon: '🟦', look: { fill: '#3d6fd6', trim: '#f5b82e' } },
+      'cape-fire':    { tier: 2, slot: 'cape', name: '火焰披風', icon: '🟧', look: { fill: '#e8743b', trim: '#ffd65a', flames: true } },
+      'cape-star':    { tier: 3, slot: 'cape', name: '星空魔法披風', icon: '🌌', look: { fill: '#5b3fa8', trim: '#f5b82e', stars: true } },
+      'cape-rainbow': { tier: 3, slot: 'cape', name: '彩虹披風', icon: '🌈', look: { fill: '#e0485a', rainbow: true } },
+      // ---------- 盾牌 ----------
+      'shield-basic':   { slot: 'shield', name: '新手盾牌', icon: '🛡️', look: { fill: '#e8743b', emblem: '#f5b82e' } },
+      'shield-iron':    { tier: 1, slot: 'shield', name: '鐵盾', icon: '🔩', look: { fill: '#9aa4ad', emblem: '#5b6470', rivets: true } },
+      'shield-lion':    { tier: 2, slot: 'shield', name: '獅子盾', icon: '🦁', look: { fill: '#3d6fd6', emblem: '#f5c84a', lion: true } },
+      'shield-crystal': { tier: 3, slot: 'shield', name: '水晶盾', icon: '💎', look: { fill: '#9fe3ff', emblem: '#ffffff', glow: true } },
+      // ---------- 武器：劍 ----------
       'sword-iron':  { slot: 'weapon', line: 'sword', name: '鐵劍', icon: '🗡️', look: { blade: '#eef3f7' },
         fx: { slash: ['rgba(255,214,90,.9)', '#fff'], sparks: ['#fff', '#ffd65a', '#f5b82e', '#ffeaa0'] } },
+      'sword-steel': { tier: 1, slot: 'weapon', line: 'sword', name: '鋼鐵長劍', icon: '⚔️', look: { blade: '#c9d3dd', long: true },
+        fx: { slash: ['rgba(200,215,230,.9)', '#fff'], sparks: ['#fff', '#c9d3dd', '#9aa4ad'] } },
       'sword-flame': { tier: 2, slot: 'weapon', line: 'sword', name: '火焰劍', icon: '🔥', look: { blade: '#ff8a3d', flame: true },
         fx: { slash: ['rgba(255,110,30,.9)', '#ffe08a'], sparks: ['#ff6a00', '#ffb347', '#ffd65a'], emoji: '🔥' } },
       'sword-ice':   { tier: 3, slot: 'weapon', line: 'sword', name: '冰霜劍', icon: '❄️', look: { blade: '#a8e6ff', ice: true },
         fx: { slash: ['rgba(110,200,255,.9)', '#fff'], sparks: ['#bfe9ff', '#fff', '#7fd3ff'], emoji: '❄️' } },
+      // ---------- 武器：弓 ----------
       'bow-wood':    { tier: 1, slot: 'weapon', line: 'bow', name: '木頭弓箭', icon: '🏹', look: { bow: '#8b5a2b' },
         fx: { arrow: '#6b4a2a', sparks: ['#fff', '#ffd65a', '#c08a52'] } },
       'bow-elf':     { tier: 2, slot: 'weapon', line: 'bow', name: '精靈弓', icon: '🍃', look: { bow: '#2fa85c' },
         fx: { arrow: '#23854a', trail: 'rgba(123,227,160,.8)', sparks: ['#7be3a0', '#2fa85c', '#fff'], emoji: '🍃' } },
       'bow-light':   { tier: 3, slot: 'weapon', line: 'bow', name: '光之弓', icon: '✨', look: { bow: '#f5c84a', glow: true },
         fx: { arrow: '#f5b82e', trail: 'rgba(255,240,170,.95)', sparks: ['#fff', '#fff6c2', '#ffd65a'], emoji: '✨' } },
+      // ---------- 武器：魔法杖（發射魔法球） ----------
+      'staff-oak':   { tier: 1, slot: 'weapon', line: 'staff', name: '橡木魔杖', icon: '🪄', look: { staff: '#8b5a2b', orb: '#7be3a0' },
+        fx: { orb: '#7be3a0', sparks: ['#7be3a0', '#fff', '#2fa85c'] } },
+      'staff-moon':  { tier: 2, slot: 'weapon', line: 'staff', name: '月光法杖', icon: '🌙', look: { staff: '#c9d3dd', orb: '#bfe0ff', glow: true },
+        fx: { orb: '#bfe0ff', sparks: ['#fff', '#bfe0ff', '#7fb2ff'], emoji: '🌙' } },
+      'staff-star':  { tier: 3, slot: 'weapon', line: 'staff', name: '星辰法杖', icon: '🌟', look: { staff: '#5b3fa8', orb: '#ffd65a', glow: true, star: true },
+        fx: { orb: '#ffd65a', sparks: ['#fff', '#ffd65a', '#ff9ad5'], emoji: '⭐' } },
     };
-    const DEFAULT_EQUIP = { helmet: 'helm-basic', cape: null, weapon: 'sword-iron' };
+    const DEFAULT_EQUIP = { helmet: 'helm-basic', cape: null, weapon: 'sword-iron', shield: 'shield-basic' };
+    const GEAR_SLOTS = ['helmet', 'cape', 'shield', 'weapon'];
     const GEAR_TRACKS = {
-      helmet: ['helm-bronze', 'helm-silver', 'helm-gold'],
-      cape:   ['cape-red', 'cape-blue', 'cape-star'],
-      sword:  ['sword-flame', 'sword-ice'],
+      helmet: ['helm-leather', 'helm-bronze', 'helm-silver', 'helm-horned', 'helm-gold', 'helm-dragon'],
+      cape:   ['cape-green', 'cape-red', 'cape-blue', 'cape-fire', 'cape-star', 'cape-rainbow'],
+      shield: ['shield-iron', 'shield-lion', 'shield-crystal'],
+      sword:  ['sword-steel', 'sword-flame', 'sword-ice'],
       bow:    ['bow-wood', 'bow-elf', 'bow-light'],
+      staff:  ['staff-oak', 'staff-moon', 'staff-star'],
     };
-    const SLOT_NAMES = { helmet: '頭盔', cape: '披風', weapon: '武器' };
+    const SLOT_NAMES = { helmet: '頭盔', cape: '披風', shield: '盾牌', weapon: '武器' };
+    const gearKey = (eq) => `${eq.helmet}|${eq.cape || ''}|${eq.weapon}|${eq.shield || 'shield-basic'}`;
     // 寶物等級：1 銅級、2 銀級、3 金級（新手裝備是 0）
     const TIER_NAMES = { 1: '銅級', 2: '銀級', 3: '金級' };
     const tierOf = (id) => (id && GEAR[id] && GEAR[id].tier) || 0;
@@ -1018,13 +1050,18 @@
       const H = GEAR[eq.helmet].look;
       const C = eq.cape ? GEAR[eq.cape].look : null;
       const W = GEAR[eq.weapon];
+      const S = GEAR[eq.shield || 'shield-basic'].look;
       const ink = '#3a2e22';
       let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 0 60 56" width="120" height="112">`;
+      if (C && C.rainbow) s += `<defs><linearGradient id="rb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e0485a"/><stop offset=".2" stop-color="#f5913b"/><stop offset=".4" stop-color="#f5d63b"/><stop offset=".6" stop-color="#4fbf5a"/><stop offset=".8" stop-color="#3d8fd6"/><stop offset="1" stop-color="#8a5ad6"/></linearGradient></defs>`;
+      const capeFill = C ? (C.rainbow ? 'url(#rb)' : C.fill) : '';
       if (C) {
-        s += `<path d="M17 22 C9 27 1 38 -4 52 Q6 55 15 51 L23 30 Z" fill="${C.fill}" stroke="${ink}" stroke-width="1.3"/>`;
+        s += `<path d="M17 22 C9 27 1 38 -4 52 Q6 55 15 51 L23 30 Z" fill="${capeFill}" stroke="${ink}" stroke-width="1.3"/>`;
+        if (C.flames) s += `<path d="M-4 52 q1.5 -6 3.5 -1 q1.5 -7 3.5 -1 q2 -6 3.5 0 q2 -5 3.5 1" fill="#ffd65a" stroke="#c65a24" stroke-width=".6"/>`;
         if (C.trim) s += `<path d="M-4 52 Q6 55 15 51" fill="none" stroke="${C.trim}" stroke-width="2.2"/>`;
         if (C.stars) s += `<circle cx="2" cy="44" r="1.3" fill="#fff"/><circle cx="7" cy="38" r="1" fill="#fff6c2"/><circle cx="9" cy="48" r="1.1" fill="#fff"/><circle cx="12" cy="33" r=".9" fill="#fff"/>`;
       }
+      if (H.horns) s += `<path d="M16 10 q-7 -1 -8 -8 q4 4 9 4z M32 10 q7 -1 8 -8 q-4 4 -9 4z" fill="#f5f0e0" stroke="${ink}" stroke-width="1"/>`;
       if (H.plume) {
         s += H.tall
           ? `<path d="M19 8 q3 -10 15 -5 q-6 0 -9 7z" fill="${H.plume}" stroke="${ink}" stroke-width="1"/>`
@@ -1036,36 +1073,99 @@
         <rect x="26" y="40" width="5" height="9" rx="2" fill="#6b5640"/>
         <rect x="16" y="48" width="7" height="5" rx="2" fill="${ink}"/>
         <rect x="25" y="48" width="8" height="5" rx="2" fill="${ink}"/>`;
-      if (C) s += `<path d="M15 22 Q24 27 33 22 L33 24.5 Q24 29.5 15 24.5 Z" fill="${C.fill}" stroke="${ink}" stroke-width=".8"/><circle cx="24" cy="26" r="1.6" fill="${C.trim || '#f5b82e'}"/>`;
+      if (C) s += `<path d="M15 22 Q24 27 33 22 L33 24.5 Q24 29.5 15 24.5 Z" fill="${capeFill}" stroke="${ink}" stroke-width=".8"/><circle cx="24" cy="26" r="1.6" fill="${C.trim || '#f5b82e'}"/>`;
       s += `<rect x="15" y="6" width="18" height="17" rx="8" fill="${H.fill}" stroke="${ink}" stroke-width="1.5"/>`;
       if (H.rivets) s += `<rect x="23" y="4" width="2.4" height="7" rx="1" fill="#a8652f" stroke="${ink}" stroke-width=".8"/><circle cx="18" cy="11" r="1" fill="#7a4a2a"/><circle cx="18" cy="19" r="1" fill="#7a4a2a"/>`;
       if (H.crown) s += `<path d="M15 9 l2.5 -7 l3.5 4.5 l3 -6.5 l3 6.5 l3.5 -4.5 l2.5 7 z" fill="#f5c84a" stroke="${ink}" stroke-width="1"/><circle cx="24" cy="5.5" r="1.6" fill="#e0485a"/>`;
-      s += `<rect x="23" y="12" width="10" height="3.5" rx="1.7" fill="${ink}"/>`;
-      if (W.line === 'bow') {
+      if (H.spikes) s += `<path d="M17 8 l2 -6 l2.5 5.5 z M22 6.5 l2.2 -7 l2.4 6.8 z M27.5 7.5 l2.3 -6 l2 5.8 z" fill="#ff9a3d" stroke="${ink}" stroke-width=".9"/><circle cx="19" cy="17" r="1" fill="#2f6b42"/><circle cx="21" cy="20" r="1" fill="#2f6b42"/>`;
+      if (H.cap) s += `<rect x="20" y="11" width="16" height="3.4" rx="1.7" fill="#6b4423" stroke="${ink}" stroke-width=".8"/><path d="M16 17 q2 5 8 6" fill="none" stroke="#6b4423" stroke-width="1.4"/>`;
+      s += `<rect x="23" y="${H.cap ? 15 : 12}" width="10" height="3.5" rx="1.7" fill="${ink}"/>`;
+      if (W.line === 'staff') {
+        // 魔法杖：一根長杖，頂端有發光的魔法球
+        if (W.look.glow) s += `<circle cx="39.5" cy="6" r="8" fill="${W.look.orb}" opacity=".35"/>`;
+        s += `<rect x="38" y="7" width="3" height="40" rx="1.5" fill="${W.look.staff}" stroke="${ink}" stroke-width="1"/>
+          <circle cx="39.5" cy="6" r="4.6" fill="${W.look.orb}" stroke="${ink}" stroke-width="1"/><circle cx="38" cy="4.5" r="1.4" fill="#fff" opacity=".8"/>`;
+        if (W.look.star) s += `<path d="M39.5 2.6 l1 2.3 l2.4 .2 l-1.8 1.6 l.6 2.4 l-2.2 -1.3 l-2.2 1.3 l.6 -2.4 l-1.8 -1.6 l2.4 -.2z" fill="#fff6c2"/>`;
+        s += `<rect x="37" y="30" width="5" height="3" rx="1" fill="#f5b82e"/>`;
+      } else if (W.line === 'bow') {
         if (W.look.glow) s += `<path d="M37 5 Q48 28 37 51" fill="none" stroke="#fff6c2" stroke-width="6" stroke-linecap="round" opacity=".7"/>`;
         s += `<path d="M37 5 Q48 28 37 51" fill="none" stroke="${W.look.bow}" stroke-width="3" stroke-linecap="round"/>
           <line x1="37" y1="5" x2="37" y2="51" stroke="#f5f0e0" stroke-width="1"/>
           <rect x="39" y="25" width="5" height="7" rx="1.5" fill="#7a4a2a" stroke="${ink}" stroke-width=".8"/>`;
       } else {
-        s += `<rect x="37" y="7" width="4" height="22" rx="1.5" fill="${W.look.blade}" stroke="${ink}" stroke-width="1.2"/>`;
+        s += W.look.long
+          ? `<rect x="37" y="2" width="4" height="27" rx="1.5" fill="${W.look.blade}" stroke="${ink}" stroke-width="1.2"/><line x1="39" y1="5" x2="39" y2="26" stroke="#8e98a3" stroke-width=".8"/>`
+          : `<rect x="37" y="7" width="4" height="22" rx="1.5" fill="${W.look.blade}" stroke="${ink}" stroke-width="1.2"/>`;
         if (W.look.flame) s += `<path d="M39 8 q-4 -4 0 -9 q0 4 3 5 q1 3 -3 4z" fill="#ff6a00" stroke="#c63d00" stroke-width=".6"/><path d="M38.5 18 l1.5 -3 l1 3z" fill="#ffd65a"/>`;
         if (W.look.ice) s += `<path d="M39 1 l2.5 6 h-5z" fill="#e6f8ff" stroke="#2c72b2" stroke-width=".7"/><path d="M38 14 l2 -2 l1 2" fill="none" stroke="#fff" stroke-width=".8"/>`;
         s += `<rect x="33" y="28" width="12" height="3.5" rx="1.5" fill="#f5b82e" stroke="${ink}" stroke-width="1"/>
           <rect x="37.5" y="31.5" width="3" height="6" rx="1" fill="#7a4a2a"/>`;
       }
-      s += `<path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="#e8743b" stroke="${ink}" stroke-width="1.5"/>
-        <path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="#f5b82e"/></svg>`;
+      // 盾牌
+      if (S.glow) s += `<path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="none" stroke="#e6f8ff" stroke-width="5" opacity=".8"/>`;
+      s += `<path d="M5 24 h13 v10 q0 8 -6.5 11 q-6.5 -3 -6.5 -11z" fill="${S.fill}" stroke="${ink}" stroke-width="1.5"/>`;
+      if (S.lion) s += `<circle cx="11.5" cy="33" r="4.4" fill="#d9a400"/><circle cx="11.5" cy="33" r="3" fill="${S.emblem}"/><circle cx="10.4" cy="32.4" r=".6" fill="${ink}"/><circle cx="12.6" cy="32.4" r=".6" fill="${ink}"/><path d="M10.6 34.5 q.9 .8 1.8 0" fill="none" stroke="${ink}" stroke-width=".6"/>`;
+      else if (S.rivets) s += `<path d="M11.5 26 v16 M7 32 h9" stroke="${S.emblem}" stroke-width="2"/><circle cx="7" cy="26.5" r="1" fill="${S.emblem}"/><circle cx="16" cy="26.5" r="1" fill="${S.emblem}"/>`;
+      else s += `<path d="M11.5 28 l2 4 h-4z M11.5 39 l-2 -4 h4z" fill="${S.emblem}"/>`;
+      if (S.glow) s += `<path d="M8 27 l3 -1 l-2 6z" fill="#fff" opacity=".7"/>`;
+      s += `</svg>`;
       return s;
+    }
+    function enemySvg(L) {
+      const ink = '#3a2e22';
+      let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-6 0 60 56" width="120" height="112">`;
+      // 第二把刀（雙刀浪人）拿在身體後面
+      if (L.weapon === 'twin') s += `<path d="M9 31 Q6 16 10 4" fill="none" stroke="#e6edf3" stroke-width="2.6" stroke-linecap="round"/><path d="M9 31 Q6 16 10 4" fill="none" stroke="${ink}" stroke-width=".5"/><rect x="6.5" y="30" width="6" height="2" fill="#f5b82e"/><rect x="8" y="32" width="2.6" height="6" fill="#2b2b2b"/>`;
+      // 腳、草鞋
+      s += `<rect x="17" y="40" width="5" height="9" rx="2" fill="#3a3a40"/><rect x="26" y="40" width="5" height="9" rx="2" fill="#3a3a40"/>
+        <rect x="16" y="48" width="7" height="4" rx="2" fill="#a07a4a"/><rect x="25" y="48" width="8" height="4" rx="2" fill="#a07a4a"/>`;
+      // 和服 / 布衣、腰帶
+      s += `<path d="M15 27 q0 -6 6 -6 h6 q6 0 6 6 v13 h-18z" fill="${L.cloth}" stroke="${ink}" stroke-width="1.5"/>
+        <path d="M20 21 l4 7 l4 -7" fill="none" stroke="${L.sash}" stroke-width="1.6"/>
+        <rect x="15" y="32" width="18" height="3.2" fill="${L.sash}"/>`;
+      if (L.fur) s += `<path d="M12 26 q2 -7 6 -4 q2 -5 6 -1 q3 -5 6 -1 q4 -3 6 4 q-12 5 -24 2z" fill="#8a6a4a" stroke="${ink}" stroke-width="1"/>`;
+      // 頭
+      s += `<circle cx="24" cy="14" r="8" fill="${L.skin}" stroke="${ink}" stroke-width="1.5"/>`;
+      s += `<path d="M24.5 11 l3.5 1.6 M29 12.6 l3 -1.4" stroke="${ink}" stroke-width="1.4" stroke-linecap="round"/>`;   // 生氣的眉毛
+      s += L.eyepatch
+        ? `<rect x="24.6" y="12.8" width="4" height="3.4" rx="1" fill="${ink}"/><path d="M16.5 10.5 L29 13.5" stroke="${ink}" stroke-width=".9"/><circle cx="30.5" cy="14.5" r="1.1" fill="${ink}"/>`
+        : `<circle cx="26.6" cy="14.5" r="1.1" fill="${ink}"/><circle cx="30.5" cy="14.5" r="1.1" fill="${ink}"/>`;
+      if (L.scar) s += `<path d="M29.5 9 l2.4 7.5" stroke="#b8303f" stroke-width="1.1"/>`;
+      if (L.beard) s += `<path d="M17.5 16 q6 12 14.5 1 q-3 3 -7 2 q-4 1 -7.5 -3z" fill="${L.beard}" stroke="${ink}" stroke-width=".8"/>`;
+      else s += `<path d="M27 19 q2 -1 4 .3" stroke="${ink}" stroke-width="1" fill="none"/>`;
+      if (L.mask) s += `<path d="M17 15.8 q7.5 3 15.2 0 v3.8 q-7.6 4 -15.2 0z" fill="#2b2b33"/>`;
+      // 帽子
+      if (L.hat === 'bandana') s += `<path d="M16 12 q8 -9 16 0 v1.6 h-16z" fill="${L.hatColor}" stroke="${ink}" stroke-width="1.2"/><path d="M16.5 12.5 l-6 1.5 l2.5 -4.5z M16.5 12.5 l-5 4.5 l1 -4.8z" fill="${L.hatColor}" stroke="${ink}" stroke-width=".7"/>`;
+      if (L.hat === 'hood') s += `<path d="M15 17 q-1.5 -14 9 -14 q10.5 0 9 14 l-2 -1 q0 -8 -7 -8 q-7 0 -7 8z" fill="${L.hatColor}" stroke="${ink}" stroke-width="1.2"/>`;
+      if (L.hat === 'kasa') s += `<path d="M8 12 L24 1.5 L40 12 Z" fill="${L.hatColor}" stroke="${ink}" stroke-width="1.2"/><path d="M15 7.5 L24 1.5 L33 7.5" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="1"/><path d="M18 12 q-1 8 3 10" fill="none" stroke="${ink}" stroke-width=".7"/>`;
+      if (L.hat === 'topknot') s += `<path d="M16 13 q0 -9 8 -9 q8 0 8 9 q-4 -3.5 -8 -3.5 q-4 0 -8 3.5z" fill="${L.hatColor}"/><circle cx="21" cy="4" r="2.8" fill="${L.hatColor}"/>`;
+      if (L.hat === 'horned') s += `<path d="M15 12.5 q0 -10 9 -10 q9 0 9 10z" fill="${L.hatColor}" stroke="${ink}" stroke-width="1.2"/><path d="M16 9 q-8 -1 -8 -9 q4 5 9 5z M32 9 q8 -1 8 -9 q-4 5 -9 5z" fill="#f5f0e0" stroke="${ink}" stroke-width="1"/><rect x="15" y="10.5" width="18" height="2.4" fill="#f5b82e"/>`;
+      // 武器（右手）
+      if (L.weapon === 'katana' || L.weapon === 'twin') s += `<path d="M38 31 Q42 16 37.5 3" fill="none" stroke="#e6edf3" stroke-width="2.6" stroke-linecap="round"/><path d="M38 31 Q42 16 37.5 3" fill="none" stroke="${ink}" stroke-width=".5"/><rect x="35.5" y="30" width="6" height="2" fill="#f5b82e"/><rect x="37" y="32" width="2.6" height="6" fill="#2b2b2b"/>`;
+      if (L.weapon === 'club') s += `<path d="M37.5 37 L39.5 9 q4.5 -2.5 6 2 L41.5 37z" fill="#8b5a2b" stroke="${ink}" stroke-width="1"/><circle cx="41.6" cy="13" r=".8" fill="#c9d3dd"/><circle cx="40.4" cy="18" r=".8" fill="#c9d3dd"/><circle cx="42.2" cy="22" r=".8" fill="#c9d3dd"/>`;
+      if (L.weapon === 'axe') s += `<rect x="38" y="6" width="2.6" height="33" rx="1" fill="#8b5a2b" stroke="${ink}" stroke-width=".8"/><path d="M40.5 7 q9 1.5 8.5 11 q-4 -2.5 -8.5 -1.5z" fill="#c9d3dd" stroke="${ink}" stroke-width="1"/>`;
+      if (L.weapon === 'bigaxe') s += `<rect x="38" y="2" width="3" height="38" rx="1" fill="#6b4423" stroke="${ink}" stroke-width=".8"/><path d="M41 3 q11 1 10.5 13 q-5 -3 -10.5 -2z M38 3 q-8 1 -7.5 10 q3.5 -2.5 7.5 -1.5z" fill="#c9d3dd" stroke="${ink}" stroke-width="1"/>`;
+      if (L.weapon === 'dagger') s += `<path d="M38 31 L39.6 17 L41.2 31z" fill="#e6edf3" stroke="${ink}" stroke-width=".8"/><rect x="36.8" y="30.5" width="5.6" height="1.8" fill="#a83a3a"/>`;
+      if (L.weapon === 'bow') s += `<path d="M37 6 Q47 28 37 50" fill="none" stroke="#7a4a2a" stroke-width="2.6" stroke-linecap="round"/><line x1="37" y1="6" x2="37" y2="50" stroke="#f5f0e0" stroke-width="1"/>`;
+      s += `<circle cx="39.4" cy="33.5" r="2.6" fill="${L.skin}" stroke="${ink}" stroke-width="1"/></svg>`;
+      return s;
+    }
+    const enemyImgs = {};
+    function enemyImage(look) {
+      const key = JSON.stringify(look);
+      if (!enemyImgs[key]) { const im = new Image(); im.src = svgUrl(enemySvg(look)); enemyImgs[key] = im; }
+      return enemyImgs[key];
     }
     const svgUrl = (svg) => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
     const KNIGHT_ASPECT = 60 / 56;      // 圖的寬 ÷ 高
     const knightImgs = {};
     function knightImage(eq) {
-      const key = `${eq.helmet}|${eq.cape || ''}|${eq.weapon}`;
+      const key = gearKey(eq);
       if (!knightImgs[key]) { const im = new Image(); im.src = svgUrl(knightSvg(eq)); knightImgs[key] = im; }
       return knightImgs[key];
     }
     const knightImg = knightImage(DEFAULT_EQUIP);
+    $('hero-enemy').src = enemyImage(BEASTS[4].look).src;
 
     const ALL_GEAR = Object.values(GEAR_TRACKS).flat();
     const CHEST_LOOT_RATE = 0.35;   // 寶箱裡有裝備的機會
@@ -1233,7 +1333,7 @@
       const equip = { ...DEFAULT_EQUIP };
       if (p) {
         p.gear.owned.forEach(id => { if (GEAR[id]) owned.add(id); });
-        for (const slot of ['helmet', 'cape', 'weapon']) {
+        for (const slot of GEAR_SLOTS) {
           const id = p.gear.equip[slot];
           if (slot === 'cape' && id === null) equip.cape = null;
           else if (id && GEAR[id] && GEAR[id].slot === slot && owned.has(id)) equip[slot] = id;
@@ -1863,7 +1963,7 @@
       if (t === T.GATE && !state.gateOpen) {
         if (now - (p.bumpT || 0) > 900) {
           p.bumpT = now;
-          toast(`🔒 城門鎖住了！先打倒所有野獸（還有 ${beastsLeft()} 隻）`, 2400);
+          toast(`🔒 城門鎖住了！先打倒所有敵人（還有 ${beastsLeft()} 個）`, 2400);
           sound('bad');
         }
         return;
@@ -2110,6 +2210,22 @@
             g.fillRect(-19, -3, 4, 2); g.fillRect(-19, 1, 4, 2);
             break;
           }
+          case 'orb': { // 魔法球：發光的圓球，後面拖著小光點
+            const e = Math.min(1, t / (f.flight || 240));
+            const x = f.x + (f.tx - f.x) * e, y = f.y + (f.ty - f.y) * e - Math.sin(Math.PI * e) * 14;
+            if (e >= 1) g.globalAlpha = Math.max(0, 1 - (t - f.flight) / 100);
+            for (let i = 1; i <= 4; i++) {
+              const e2 = Math.max(0, e - i * .07);
+              const tx = f.x + (f.tx - f.x) * e2, ty = f.y + (f.ty - f.y) * e2 - Math.sin(Math.PI * e2) * 14;
+              g.fillStyle = f.color; g.globalAlpha = Math.max(0, (e >= 1 ? .3 : .5) - i * .1);
+              g.beginPath(); g.arc(tx, ty, 6 - i, 0, Math.PI * 2); g.fill();
+            }
+            g.globalAlpha = e >= 1 ? Math.max(0, 1 - (t - f.flight) / 100) : 1;
+            const gr = g.createRadialGradient(x, y, 1, x, y, 11);
+            gr.addColorStop(0, '#fff'); gr.addColorStop(.45, f.color); gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr; g.beginPath(); g.arc(x, y, 11, 0, Math.PI * 2); g.fill();
+            break;
+          }
           case 'ring': {
             g.globalAlpha = 1 - k;
             g.strokeStyle = f.color; g.lineWidth = 5 * (1 - k) + 1;
@@ -2182,7 +2298,7 @@
       // 攻擊：往後蓄力 → 衝上前揮劍 → 退回原位
       if (p.attackT) {
         const t = now - p.attackT;
-        if (t >= 0 && t < 650 && p.attackKind === 'bow') {
+        if (t >= 0 && t < 650 && (p.attackKind === 'bow' || p.attackKind === 'staff')) {
           // 拉弓：身體往後拉、停一下放箭、再回來
           const k = t < 150 ? -(t / 150) * 6 : t < 380 ? -6 : -6 * (1 - (t - 380) / 270);
           ox = (p.ax || 0) * k; oy = (p.ay || 0) * k;
@@ -2303,7 +2419,16 @@
       g.arc(x, y + (boss ? -4 : 1), size * .52, 0, Math.PI * 2);
       g.fill();
       if (!e.done) g.stroke();
-      if (rot) {
+      if (e.type === 'beast') {
+        // 山賊、浪人：畫成人物，轉身面向騎士
+        const img = enemyImage(e.beast.look);
+        const h = size * 1.2, w = h * KNIGHT_ASPECT;
+        g.save(); g.translate(x, y + (boss ? -8 : -2)); if (rot) g.rotate(rot);
+        if (state.p.x <= e.x) g.scale(-1, 1);   // 圖是面向右邊；騎士在左邊時翻過來
+        if (img.complete && img.naturalWidth) g.drawImage(img, -w / 2, -h / 2, w, h);
+        else emoji(g, e.icon, 0, 0, size);
+        g.restore();
+      } else if (rot) {
         g.save(); g.translate(x, y + (boss ? -6 : 0)); g.rotate(rot);
         emoji(g, e.icon, 0, 0, size);
         g.restore();
@@ -2548,13 +2673,19 @@
             ring.rotation.x = -Math.PI / 2; ring.position.y = .02;
             grp.add(ring);
           }
-          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e.type === 'chest' ? '🎁' : e.icon), transparent: true, depthWrite: false }));
-          sp.center.set(.5, .1);
-          grp.add(sp);
+          let sp = null, model = null;
+          if (e.type === 'beast') {
+            model = buildEnemyModel(e.beast.look, !!e.beast.boss);
+            grp.add(model.root);
+          } else {
+            sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e.type === 'chest' ? '🎁' : e.icon), transparent: true, depthWrite: false }));
+            sp.center.set(.5, .1);
+            grp.add(sp);
+          }
           scene.add(grp);
           const base = e.type === 'chest' ? .6 : e.beast && e.beast.boss ? 1.55 : e.type === 'beast' ? 1.05 : .95;
           if (e.beast && e.beast.boss) { shadowMesh.scale.setScalar(1.6); ring.scale.setScalar(1.5); }
-          sprites.set(e, { grp, sp, ring, base, chestOpen: false });
+          sprites.set(e, { grp, sp, model, ring, base, chestOpen: false, angle: null });
         });
 
         // 小騎士：立體模型，依照裝備組合
@@ -2565,11 +2696,106 @@
         scene.add(knightShadow);
       }
 
+      // ---------- 立體山賊、浪人 ----------
+      // 跟小騎士一樣用簡單的形狀組成，面向 +Z；右手拿武器
+      function buildEnemyModel(L, boss) {
+        const mats = [];
+        const mat = (color, opts = {}) => { const m = new THREE.MeshLambertMaterial({ color, ...opts }); mats.push(m); return m; };
+        const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+        const root = new THREE.Group(), body = new THREE.Group();
+        root.add(body);
+        const ink = '#3a2e22';
+        const mkLeg = (x) => {
+          const pv = new THREE.Group(); pv.position.set(x, .3, 0);
+          const leg = box(.11, .22, .11, mat('#3a3a40')); leg.position.y = -.11;
+          const shoe = box(.13, .06, .17, mat('#a07a4a')); shoe.position.set(0, -.26, .02);
+          pv.add(leg, shoe); body.add(pv); return pv;
+        };
+        const legL = mkLeg(.075), legR = mkLeg(-.075);
+        const torso = box(.36, .32, .24, mat(L.cloth)); torso.position.y = .46;
+        const sash = box(.37, .05, .25, mat(L.sash)); sash.position.y = .37;
+        const collar = box(.12, .14, .01, mat(L.sash)); collar.position.set(0, .54, .125); collar.rotation.z = Math.PI / 4;
+        body.add(torso, sash, collar);
+        if (L.fur) { const fur = new THREE.Mesh(new THREE.TorusGeometry(.2, .07, 6, 12), mat('#8a6a4a')); fur.rotation.x = Math.PI / 2; fur.position.y = .62; body.add(fur); }
+        // 頭、臉
+        const skin = mat(L.skin);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(.15, 14, 10), skin); head.position.y = .77;
+        body.add(head);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: ink });
+        [-.055, .055].forEach((x, i) => {
+          if (L.eyepatch && i === 0) { const patch = box(.07, .055, .02, eyeMat); patch.position.set(x, .79, .14); body.add(patch); return; }
+          const eye = box(.03, .03, .02, eyeMat); eye.position.set(x, .79, .143); body.add(eye);
+          const brow = box(.06, .015, .02, eyeMat); brow.position.set(x, .835, .14); brow.rotation.z = (i ? 1 : -1) * .35; body.add(brow);
+        });
+        if (L.beard) { const beard = box(.2, .12, .08, mat(L.beard)); beard.position.set(0, .68, .1); body.add(beard); }
+        if (L.mask) { const m = box(.28, .07, .05, mat('#2b2b33')); m.position.set(0, .72, .11); body.add(m); }
+        if (L.scar) { const sc = box(.015, .09, .01, new THREE.MeshBasicMaterial({ color: '#b8303f' })); sc.position.set(.06, .8, .15); sc.rotation.z = .3; body.add(sc); }
+        // 帽子
+        const hatMat = mat(L.hatColor);
+        if (L.hat === 'bandana') {
+          const band = new THREE.Mesh(new THREE.SphereGeometry(.155, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.4), hatMat); band.position.y = .79; body.add(band);
+          const tail = box(.05, .12, .03, hatMat); tail.position.set(.06, .78, -.16); tail.rotation.x = -.5; body.add(tail);
+        }
+        if (L.hat === 'hood') { const hood = new THREE.Mesh(new THREE.SphereGeometry(.18, 14, 10, 0, Math.PI * 2, 0, Math.PI / 1.6), hatMat); hood.position.set(0, .77, -.02); body.add(hood); }
+        if (L.hat === 'kasa') { const kasa = new THREE.Mesh(new THREE.ConeGeometry(.25, .13, 16), hatMat); kasa.position.y = .96; body.add(kasa); }
+        if (L.hat === 'topknot') {
+          const hair = new THREE.Mesh(new THREE.SphereGeometry(.155, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.2), hatMat); hair.position.y = .785; body.add(hair);
+          const bun = new THREE.Mesh(new THREE.SphereGeometry(.05, 8, 6), hatMat); bun.position.set(0, .95, -.05); body.add(bun);
+        }
+        if (L.hat === 'horned') {
+          const helm = new THREE.Mesh(new THREE.SphereGeometry(.165, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2.1), hatMat); helm.position.y = .79; body.add(helm);
+          const hornMat = mat('#f5f0e0');
+          [-1, 1].forEach(sd => { const h = new THREE.Mesh(new THREE.ConeGeometry(.045, .24, 6), hornMat); h.position.set(sd * .19, .9, 0); h.rotation.z = -sd * 1.0; body.add(h); });
+          const band = box(.34, .04, .34, mat('#f5b82e')); band.position.y = .8; body.add(band);
+        }
+        // 手臂、武器
+        const mkArm = (x) => {
+          const pv = new THREE.Group(); pv.position.set(x, .58, 0);
+          const arm = box(.08, .22, .08, mat(L.cloth)); arm.position.y = -.1;
+          const hand = box(.08, .06, .08, skin); hand.position.y = -.23;
+          pv.add(arm, hand); body.add(pv); return pv;
+        };
+        const armR = mkArm(-.22), armL = mkArm(.22);
+        const mkWeapon = (kind) => {
+          const hold = new THREE.Group(); hold.position.set(0, -.23, .03);
+          const steel = mat('#e6edf3'), wood = mat('#8b5a2b');
+          if (kind === 'katana') {
+            const blade = box(.03, .5, .015, steel); blade.position.y = .28; blade.rotation.z = .08;
+            const tsuba = box(.09, .02, .09, mat('#f5b82e')); tsuba.position.y = .03;
+            const grip = box(.03, .1, .03, mat('#2b2b2b')); grip.position.y = -.04;
+            hold.add(blade, tsuba, grip); hold.rotation.x = .5;
+          } else if (kind === 'club') {
+            const club = new THREE.Mesh(new THREE.CylinderGeometry(.06, .03, .45, 7), wood); club.position.y = .2;
+            hold.add(club); hold.rotation.x = .4;
+          } else if (kind === 'axe' || kind === 'bigaxe') {
+            const big = kind === 'bigaxe';
+            const handle = new THREE.Mesh(new THREE.CylinderGeometry(.02, .02, big ? .7 : .5, 6), wood); handle.position.y = big ? .28 : .2;
+            const headA = box(.03, big ? .2 : .14, big ? .2 : .14, steel); headA.position.set(0, big ? .55 : .4, big ? .1 : .07);
+            hold.add(handle, headA);
+            if (big) { const headB = box(.03, .16, .14, steel); headB.position.set(0, .55, -.08); hold.add(headB); }
+            hold.rotation.x = .4;
+          } else if (kind === 'dagger') {
+            const blade = box(.03, .18, .012, steel); blade.position.y = .11;
+            hold.add(blade); hold.rotation.x = .6;
+          } else if (kind === 'bow') {
+            const bow = new THREE.Mesh(new THREE.TorusGeometry(.24, .016, 6, 18, Math.PI), wood);
+            bow.rotation.set(0, Math.PI / 2, Math.PI / 2);
+            hold.add(bow);
+          }
+          return hold;
+        };
+        armR.add(mkWeapon(L.weapon === 'twin' ? 'katana' : L.weapon));
+        if (L.weapon === 'twin') armL.add(mkWeapon('katana'));
+        root.scale.setScalar(boss ? 1.6 : 1.15);
+        return { root, body, legL, legR, armL, armR, mats, base: boss ? 1.6 : 1.15 };
+      }
+
       // ---------- 立體小騎士 ----------
       // 模型面向 +Z；右手（拿武器）在 -X，左手（拿盾牌）在 +X。高度大約 1 格。
       let knightAngle = null;
       function buildKnightModel(eq) {
         const H = GEAR[eq.helmet].look, C = eq.cape ? GEAR[eq.cape].look : null, Wp = GEAR[eq.weapon];
+        const S = GEAR[eq.shield || 'shield-basic'].look;
         const mats = [];   // 會被打中變紅的材質
         const mat = (color, opts = {}) => { const m = new THREE.MeshLambertMaterial({ color, ...opts }); if (!opts.emissive) mats.push(m); return m; };
         const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -2595,8 +2821,20 @@
         // 披風：掛在背後
         if (C) {
           const capeMat = mat(C.fill, { side: THREE.DoubleSide });
-          const cape = box(.36, .52, .02, capeMat); cape.position.set(0, .36, -.14); cape.rotation.x = .18;
-          body.add(cape);
+          if (C.rainbow) {
+            // 彩虹披風：六條顏色疊起來
+            const colors = ['#e0485a', '#f5913b', '#f5d63b', '#4fbf5a', '#3d8fd6', '#8a5ad6'];
+            const capeG = new THREE.Group(); capeG.position.set(0, .36, -.14); capeG.rotation.x = .18;
+            colors.forEach((c, i) => { const st = box(.36, .088, .02, mat(c, { side: THREE.DoubleSide })); st.position.y = .22 - i * .088; capeG.add(st); });
+            body.add(capeG);
+          } else {
+            const cape = box(.36, .52, .02, capeMat); cape.position.set(0, .36, -.14); cape.rotation.x = .18;
+            body.add(cape);
+          }
+          if (C.flames) {
+            const fm = new THREE.MeshBasicMaterial({ color: '#ffb347' });
+            [-.12, 0, .12].forEach(x => { const f = new THREE.Mesh(new THREE.ConeGeometry(.04, .12, 5), fm); f.rotation.x = Math.PI; f.position.set(x, .06, -.19); body.add(f); });
+          }
           const collar = box(.38, .05, .26, capeMat); collar.position.y = .6; body.add(collar);
           if (C.trim) { const trim = box(.37, .04, .03, mat(C.trim)); trim.position.set(0, .12, -.185); trim.rotation.x = .18; body.add(trim); }
           if (C.stars) {
@@ -2619,6 +2857,17 @@
           const ridge = box(.03, .06, .3, mat('#a8652f')); ridge.position.y = .9; body.add(ridge);
           const rivet = mat('#7a4a2a');
           [[-.13, .78], [.13, .78]].forEach(([x, y]) => { const r = new THREE.Mesh(new THREE.SphereGeometry(.018, 6, 4), rivet); r.position.set(x, y, .05); body.add(r); });
+        }
+        if (H.cap) {
+          const brim = box(.2, .03, .14, mat('#6b4423')); brim.position.set(0, .83, .14); body.add(brim);
+        }
+        if (H.horns) {
+          const hornMat = mat('#f5f0e0');
+          [-1, 1].forEach(side => { const h = new THREE.Mesh(new THREE.ConeGeometry(.04, .2, 6), hornMat); h.position.set(side * .17, .88, 0); h.rotation.z = -side * 1.0; body.add(h); });
+        }
+        if (H.spikes) {
+          const spikeMat = mat('#ff9a3d');
+          [-.08, 0, .08].forEach((z, i) => { const sp = new THREE.Mesh(new THREE.ConeGeometry(.04, i === 1 ? .16 : .12, 5), spikeMat); sp.position.set(0, .92, z); body.add(sp); });
         }
         if (H.crown) {
           const gold = mat('#f5c84a');
@@ -2643,13 +2892,33 @@
         const armR = mkArm(-.22), armL = mkArm(.22);
 
         // 盾牌：在左手外側
-        const shield = box(.03, .26, .22, mat('#e8743b')); shield.position.set(.07, -.14, .02);
-        const emblem = box(.035, .1, .06, mat('#f5b82e')); emblem.position.set(.075, -.14, .02);
-        armL.add(shield, emblem);
+        const shieldMat = S.glow
+          ? new THREE.MeshLambertMaterial({ color: S.fill, emissive: '#3a7aa0', transparent: true, opacity: .85 })
+          : mat(S.fill);
+        const shield = box(.03, .26, .22, shieldMat); shield.position.set(.07, -.14, .02);
+        armL.add(shield);
+        if (S.lion) {
+          const disc = new THREE.Mesh(new THREE.CylinderGeometry(.075, .075, .02, 16), mat(S.emblem)); disc.rotation.z = Math.PI / 2; disc.position.set(.09, -.14, .02);
+          armL.add(disc);
+        } else if (S.rivets) {
+          const bar = box(.035, .24, .03, mat(S.emblem)); bar.position.set(.08, -.14, .02);
+          const bar2 = box(.035, .03, .2, mat(S.emblem)); bar2.position.set(.08, -.14, .02);
+          armL.add(bar, bar2);
+        } else {
+          const emblem = box(.035, .1, .06, S.glow ? new THREE.MeshBasicMaterial({ color: '#ffffff' }) : mat(S.emblem)); emblem.position.set(.075, -.14, .02);
+          armL.add(emblem);
+        }
 
         // 武器：在右手
         const hold = new THREE.Group(); hold.position.set(0, -.23, .02); armR.add(hold);
-        if (Wp.line === 'bow') {
+        if (Wp.line === 'staff') {
+          // 魔法杖：長杖 + 頂端發光的魔法球
+          const stick = new THREE.Mesh(new THREE.CylinderGeometry(.022, .026, .7, 6), mat(Wp.look.staff)); stick.position.set(0, .22, .03);
+          const orb = new THREE.Mesh(new THREE.SphereGeometry(.075, 12, 8), new THREE.MeshLambertMaterial({ color: Wp.look.orb, emissive: Wp.look.orb, emissiveIntensity: Wp.look.glow ? .8 : .4 }));
+          orb.position.set(0, .6, .03);
+          hold.add(stick, orb);
+          if (Wp.look.star) { const st = new THREE.Mesh(new THREE.OctahedronGeometry(.04, 0), new THREE.MeshBasicMaterial({ color: '#fff6c2' })); st.position.set(0, .72, .03); hold.add(st); }
+        } else if (Wp.line === 'bow') {
           const bowMat = Wp.look.glow ? new THREE.MeshLambertMaterial({ color: Wp.look.bow, emissive: '#7a5a00' }) : mat(Wp.look.bow);
           const bow = new THREE.Mesh(new THREE.TorusGeometry(.26, .018, 6, 18, Math.PI), bowMat);
           bow.rotation.set(0, Math.PI / 2, Math.PI / 2); bow.position.set(0, 0, .04);
@@ -2658,7 +2927,7 @@
         } else {
           const glow = Wp.look.flame ? '#a63a00' : Wp.look.ice ? '#1a5a80' : null;
           const bladeMat = glow ? new THREE.MeshLambertMaterial({ color: Wp.look.blade, emissive: glow }) : mat(Wp.look.blade);
-          const blade = box(.045, .44, .02, bladeMat); blade.position.set(0, .24, .02);
+          const blade = box(.045, Wp.look.long ? .56 : .44, .02, bladeMat); blade.position.set(0, Wp.look.long ? .3 : .24, .02);
           const guard = box(.16, .035, .05, mat('#f5b82e')); guard.position.set(0, .02, .02);
           const grip = box(.035, .09, .035, mat('#7a4a2a')); grip.position.set(0, -.04, .02);
           hold.add(blade, guard, grip);
@@ -2673,7 +2942,7 @@
           hold.rotation.x = .5;    // 劍稍微往前斜
         }
         root.scale.setScalar(1.15);   // 從高處往下看，稍微放大一點比較清楚
-        return { root, body, legL, legR, armL, armR, hold, mats, bow: Wp.line === 'bow' };
+        return { root, body, legL, legR, armL, armR, hold, mats, bow: Wp.line === 'bow' || Wp.line === 'staff' };
       }
 
       function disposeModel(m) {
@@ -2683,7 +2952,7 @@
 
       // 換裝備時重新組一隻小騎士
       function updateKnightModel() {
-        const key = `${state.equip.helmet}|${state.equip.cape || ''}|${state.equip.weapon}`;
+        const key = gearKey(state.equip);
         if (knight && key === knightKey) return;
         if (knight) disposeModel(knight);
         knight = buildKnightModel(state.equip);
@@ -2748,6 +3017,34 @@
           if (!P) { o.grp.visible = false; return; }
           o.grp.visible = true;
           o.grp.position.set(P.x / TS, 0, P.y / TS);
+          if (o.model) {
+            // 山賊、浪人：轉身面向騎士、走路擺手腳、反擊時揮武器、被打中閃紅光、被打倒時轉圈縮小
+            const M = o.model;
+            const want = Math.atan2(kx - P.x / TS, kz - P.y / TS);
+            if (o.angle === null) o.angle = want;
+            const diff = ((want - o.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+            o.angle += diff * Math.min(1, dt * 8);
+            M.root.rotation.y = o.angle + (e.done ? P.rot : 0);
+            M.root.position.y = (P.lift - P.bob) / TS;
+            M.root.scale.setScalar(M.base * P.scale);
+            const walk = e.moving ? Math.sin(now / 90) : 0;
+            M.legL.rotation.x = walk * .6; M.legR.rotation.x = -walk * .6;
+            M.armL.rotation.x = -walk * .4;
+            let arm = walk * .4;
+            if (state.active === e && !e.done) arm = -.5 + Math.sin(now / 260) * .1;
+            const lt = e.lungeT ? now - e.lungeT : -1;
+            if (lt >= 0 && lt < 600) arm = lt < 200 ? -2.4 * (lt / 200) : lt < 330 ? -2.4 + 3.1 * ((lt - 200) / 130) : .7 * (1 - (lt - 330) / 270);
+            M.armR.rotation.x = arm;
+            M.body.rotation.x = !e.done ? -P.rot * .4 : 0;
+            const hurt = P.hitAge >= 0 && P.hitAge < 260;
+            M.mats.forEach(m => m.emissive.setRGB(hurt ? .6 : 0, 0, 0));
+            if (o.ring) {
+              o.ring.visible = !e.done;
+              const pulse = state.active === e ? 1 + .12 * Math.sin(now / 180) : 1;
+              o.ring.scale.setScalar((e.beast && e.beast.boss ? 1.5 : 1) * pulse);
+            }
+            return;
+          }
           o.sp.position.y = (P.lift - P.bob) / TS;
           const s = o.base * P.scale;
           o.sp.scale.set(s, s, 1);
@@ -2840,7 +3137,8 @@
         const base = boss ? 1.55 : e.type === 'beast' ? 1.05 : .95;
         const fp = R3.project(P.x, P.y, (P.lift - P.bob) / TS);
         if (fp.behind) return;
-        const ly = fp.y - base * P.scale * .92 * TS * fp.s - 8;
+        let ly = fp.y - base * P.scale * .92 * TS * fp.s - 8;
+        if (e.type === 'beast') ly = R3.project(P.x, P.y, (boss ? 1.75 : 1.28) * P.scale + (P.lift - P.bob) / TS).y - 10;
         if (e.type === 'npc') {
           if (!e.done) label(g, '❗ 需要幫忙', fp.x, ly + Math.sin(now / 250) * 2, '#3a2e22', 'rgba(255,240,200,.95)');
           else label(g, '✅', fp.x, ly, '#2fa85c', 'rgba(255,255,255,.9)');
@@ -2946,7 +3244,7 @@
       const npcLeft = state.npcTotal - state.npcsDone;
       $('guide').innerHTML = left === 0
         ? '<b>城門打開了！</b>看小地圖，走到紫色的城堡 🏰'
-        : `<b>還有 ${left} 隻野獸、${npcLeft} 位村民</b>看右上角的小地圖找找看！打倒所有野獸，城門就會打開。`;
+        : `<b>還有 ${left} 個敵人、${npcLeft} 位村民</b>看右上角的小地圖找找看！打倒所有山賊和浪人，城門就會打開。`;
     }
 
     function bump(id) {
@@ -2997,8 +3295,11 @@
         sound('ding');
       } else {
         enc.classList.add('battle');
-        $('portrait').textContent = ent.icon;
-        $('enc-kind').textContent = ent.beast.boss ? '魔王戰！' : '野獸出現了！';
+        $('portrait').innerHTML = '';
+        const pimg = document.createElement('img');
+        pimg.src = enemyImage(ent.beast.look).src; pimg.alt = ent.beast.name;
+        $('portrait').appendChild(pimg);
+        $('enc-kind').textContent = ent.beast.boss ? '頭目戰！' : '敵人出現了！';
         $('enc-title').textContent = `${ent.beast.name}擋住了去路`;
         $('hpbar').hidden = false;
         renderHp(ent);
@@ -3321,8 +3622,13 @@
       const finisher = ent.hp <= 1;
       const wpn = GEAR[state.equip.weapon];
       const bow = wpn.line === 'bow';
-      p.attackKind = bow ? 'bow' : 'sword';
-      if (bow) {
+      const staff = wpn.line === 'staff';
+      p.attackKind = bow ? 'bow' : staff ? 'staff' : 'sword';
+      if (staff) {
+        // 舉杖 → 魔法球飛過去
+        sound('magic');
+        addFx({ kind: 'orb', x: pc0.x + (p.ax || 1) * 12, y: pc0.y - 14, tx: ec.x, ty: ec.y, color: wpn.fx.orb, flight: 240, dur: 340 }, 170);
+      } else if (bow) {
         // 拉弓 → 放箭 → 箭飛過去
         sound('bow');
         addFx({ kind: 'arrow', x: pc0.x + (p.ax || 1) * 12, y: pc0.y - 2, tx: ec.x, ty: ec.y, color: wpn.fx.arrow, trail: wpn.fx.trail, flight: 180, dur: 300 }, 170);
@@ -3361,7 +3667,7 @@
           fb.innerHTML = `${text}<br>${ent.beast.name}還有 ${ent.hp} 點生命！`;
           showNext('fight', '下一回合 ⚔️');
         }
-      }, bow ? 350 : 300);
+      }, staff ? 420 : bow ? 350 : 300);
     }
 
     // 答錯就扣 1 顆愛心；野獸還會撲過來反擊
@@ -3376,9 +3682,9 @@
         p.hurtT = now + 300;
         setTimeout(() => sound('claw'), 280);
         if (ent.beast.boss) {
-          // 飛龍噴火
-          for (let i = 0; i < 7; i++) {
-            addFx({ kind: 'fly', emoji: '🔥', x: ec.x, y: ec.y - 6, tx: pc.x + (Math.random() - .5) * 16, ty: pc.y + (Math.random() - .5) * 16, size: 20, grow: true, wobble: true, dur: 380 }, 120 + i * 45);
+          // 山賊大王丟炸彈
+          for (let i = 0; i < 5; i++) {
+            addFx({ kind: 'fly', emoji: i % 2 ? '💥' : '💣', x: ec.x, y: ec.y - 6, tx: pc.x + (Math.random() - .5) * 16, ty: pc.y + (Math.random() - .5) * 16, size: 20, grow: true, wobble: true, dur: 380 }, 120 + i * 45);
           }
           burst(pc.x, pc.y, 10, ['#e8743b', '#f5b82e', '#e0485a'], { speed: .1, life: 500, delay: 420 });
         } else {
@@ -3480,7 +3786,8 @@
       const slots = {
         helmet: ['helm-basic', ...GEAR_TRACKS.helmet],
         cape: [null, ...GEAR_TRACKS.cape],
-        weapon: ['sword-iron', ...GEAR_TRACKS.sword, ...GEAR_TRACKS.bow],
+        shield: ['shield-basic', ...GEAR_TRACKS.shield],
+        weapon: ['sword-iron', ...GEAR_TRACKS.sword, ...GEAR_TRACKS.bow, ...GEAR_TRACKS.staff],
       };
       let html = `<p class="tier-legend"><span class="gstars t1">★</span> 銅級：簡單、普通　<span class="gstars t2">★★</span> 銀級：普通、挑戰　<span class="gstars t3">★★★</span> 金級：挑戰、超級</p>`;
       for (const [slot, ids] of Object.entries(slots)) {
@@ -3597,14 +3904,14 @@
       $('result-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
       $('result-detail').innerHTML = `
         <div class="stat"><div class="num">${state.npcsDone} / ${state.npcTotal}</div><div class="lbl">幫助的村民</div></div>
-        <div class="stat"><div class="num">${state.beastsDone}</div><div class="lbl">打倒的野獸</div></div>
+        <div class="stat"><div class="num">${state.beastsDone}</div><div class="lbl">打倒的敵人</div></div>
         <div class="stat"><div class="num">${state.perfect} / ${state.asked}</div><div class="lbl">一次就算對的題目</div></div>
         <div class="stat"><div class="num">🪙 ${state.coins}</div><div class="lbl">收集的金幣</div></div>`;
 
       $('result-knight').src = knightImage(state.equip).src;
       const eq = state.equip;
       const gotCount = Object.values(GEAR_TRACKS).flat().filter(id => state.owned.has(id)).length;
-      $('result-gear').innerHTML = [eq.helmet, eq.cape, eq.weapon].filter(Boolean).map(id => `${GEAR[id].icon} ${GEAR[id].name}`).join('<br>')
+      $('result-gear').innerHTML = [eq.helmet, eq.cape, eq.shield, eq.weapon].filter(Boolean).map(id => `${GEAR[id].icon} ${GEAR[id].name}`).join('<br>')
         + `<br><span class="lbl">這趟新拿到 ${state.newLoot} 件，總共收集 ${gotCount} / ${ALL_GEAR.length} 件</span>`;
 
       const review = $('review');
@@ -3896,6 +4203,7 @@
           slash: { wave: 'sawtooth', vol: 0.07, notes: [[900, 0.04], [500, 0.08]] },
           swing: { wave: 'sawtooth', vol: 0.05, notes: [[1200, 0.03], [800, 0.04], [450, 0.06]] },
           bow:   { wave: 'triangle', vol: 0.09, notes: [[320, 0.04], [220, 0.08], [160, 0.1]] },
+          magic: { wave: 'sine', vol: 0.1, notes: [[660, 0.06], [990, 0.06], [1320, 0.08], [1760, 0.14]] },
           equip: { wave: 'sine', vol: 0.12, notes: [[660, 0.08], [880, 0.08], [1175, 0.08], [1568, 0.25]] },
           hit:   { wave: 'square', vol: 0.08, notes: [[180, 0.06], [90, 0.12]] },
           claw:  { wave: 'sawtooth', vol: 0.08, notes: [[520, 0.05], [300, 0.06], [180, 0.1]] },
