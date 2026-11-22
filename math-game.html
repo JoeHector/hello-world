@@ -513,6 +513,44 @@
       .sheet .feedback { font-size: 1.02rem; }
       .tool { font-size: .95rem; padding: 5px 12px; }
     }
+
+    /* 手機直拿：題目一定要看得到
+       數字鍵盤改成兩排（1~6 / 7 8 9 ⌫ 0 ✔），標題和回饋文字縮小一點，空出來的空間給題目 */
+    @media (max-width: 560px) and (orientation: portrait) {
+      .sheet { gap: 6px; padding-block: 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+      .sheet-scroll { min-height: 150px; }
+      .enc { gap: 6px; }
+      .enc-head { gap: 8px; }
+      .portrait { width: 42px; height: 42px; font-size: 1.65rem; border-radius: 12px; }
+      .portrait img { width: 46px; height: 43px; }
+      .enc-kind { font-size: .8rem; }
+      .enc-title { font-size: 1.15rem; }
+      .hpbar i { width: 18px; height: 10px; }
+      .story { font-size: 1.24rem; line-height: 1.55; }
+      .story b { font-size: 1.38rem; }
+      .story .ask { margin-top: 2px; }
+      .sheet-foot { gap: 6px; }
+      .answer-row { font-size: 1.3rem; gap: 8px; }
+      .answer-box { height: 50px; font-size: 2rem; min-width: 88px; }
+      .slot { width: 42px; height: 50px; font-size: 1.8rem; }
+      .sheet .feedback { font-size: 1rem; line-height: 1.35; min-height: 0; }
+      .sheet .feedback small { display: none; }   /* 提示按鈕會晃動提醒，不用再多一行字 */
+      .keypad, .letterpad { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+      .sheet .key { padding: 9px 0; font-size: 1.45rem; border-radius: 12px; }
+      .tool { font-size: .95rem; padding: 5px 12px; }
+      .loot { padding: 6px 10px; gap: 8px; }
+      .loot img { width: 48px; height: 45px; }
+      .loot small { display: none; }
+    }
+    /* 很矮的手機：題目區再多給一點空間 */
+    @media (max-width: 560px) and (orientation: portrait) and (max-height: 680px) {
+      .sheet { max-height: 82%; }
+      .sheet-scroll { min-height: 130px; }
+      .story { font-size: 1.12rem; }
+      .story b { font-size: 1.25rem; }
+      .sheet .key { padding: 7px 0; font-size: 1.3rem; }
+      .answer-box { height: 44px; font-size: 1.75rem; }
+    }
   </style>
 </head>
 <body>
