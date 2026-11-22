@@ -396,6 +396,8 @@
     .tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
     .tool { border: 3px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: bold; color: var(--ink); cursor: pointer; }
     .tool:active { transform: scale(.96); }
+    /* 「唸給我聽」放在題目卡右上角 */
+    .speak-btn { flex: none; align-self: flex-start; white-space: nowrap; font-size: .95rem; padding: 6px 12px; border-color: var(--blue); color: var(--blue-dark); background: #eef6ff; }
     .tool.nudge { animation: nudge .6s ease 2; border-color: var(--gold); }
     @keyframes nudge { 25% { transform: rotate(-4deg) scale(1.06); } 75% { transform: rotate(4deg) scale(1.06); } }
     .feedback small { font-size: .85rem; color: var(--muted); font-weight: bold; }
@@ -542,6 +544,13 @@
       .loot img { width: 48px; height: 45px; }
       .loot small { display: none; }
     }
+    /* 橫拿手機：「唸給我聽」只顯示喇叭圖示，讓標題和生命值放得下 */
+    @media (max-height: 520px) and (min-aspect-ratio: 1/1) {
+      .speak-btn { padding: 4px 9px; }
+      .speak-btn .speak-text { display: none; }
+      .speak-btn::before { content: "🔊"; font-size: 1.1rem; }
+    }
+    .hpbar { white-space: nowrap; }
     /* 很矮的手機：題目區再多給一點空間 */
     @media (max-width: 560px) and (orientation: portrait) and (max-height: 680px) {
       .sheet { max-height: 82%; }
@@ -704,12 +713,12 @@
                 <h2 class="enc-title" id="enc-title">找回走失的雞</h2>
                 <div class="hpbar" id="hpbar" hidden></div>
               </div>
+              <button class="tool speak-btn" id="speak-btn" aria-label="把題目唸給我聽"><span class="speak-text">🔊 唸給我聽</span></button>
             </div>
 
             <p class="story" id="story"></p>
 
             <div class="tools">
-              <button class="tool" id="speak-btn">🔊 唸給我聽</button>
               <button class="tool" id="say-word-btn" hidden>🔤 聽英文發音</button>
               <button class="tool" id="hint-btn">💡 看提示</button>
             </div>
